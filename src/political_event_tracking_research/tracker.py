@@ -20,7 +20,9 @@ BUCKET_WEIGHTS = {
 EVENT_WEIGHTS = {
     "public_mention": 4,
     "policy_capital": 4,
+    "procurement": 4,
     "disclosure_buy": 3,
+    "regulatory_action": 3,
     "market_reaction": 1,
 }
 

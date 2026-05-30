@@ -47,6 +47,14 @@ python scripts/build_tracker.py \
   --output data/output/political_tracker.example.csv
 ```
 
+Normalize official-source records into the event schema:
+
+```bash
+python scripts/import_official_events.py \
+  --input examples/official_records.example.csv \
+  --output data/output/official_events.example.csv
+```
+
 Run the synthetic event study:
 
 ```bash
@@ -105,7 +113,7 @@ This repo does not own:
 
 ## Next Work
 
-1. Add official-source extraction.
+1. Add more official-source adapters and record templates.
 2. Add a source adapter for OGE disclosure PDFs or normalized public datasets.
 3. Add public-remarks ingestion from White House pages and social-media exports.
 4. Backfill enough point-in-time events to evaluate hit rate, lag, and false

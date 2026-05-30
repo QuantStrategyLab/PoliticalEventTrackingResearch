@@ -46,6 +46,14 @@ python scripts/build_tracker.py \
   --output data/output/political_tracker.example.csv
 ```
 
+把官方来源记录归一化为事件 schema：
+
+```bash
+python scripts/import_official_events.py \
+  --input examples/official_records.example.csv \
+  --output data/output/official_events.example.csv
+```
+
 用合成价格样本跑事件研究：
 
 ```bash
