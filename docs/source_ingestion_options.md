@@ -37,9 +37,11 @@ RSS/API/export/scrape
   JSON into `source_items.csv`. Use `--author-allowlist` to keep only followed
   high-quality community authors.
 - `scripts/fetch_longbridge_cli_topics.py` optionally calls the official
-  Longbridge CLI for configured symbols, writes raw topic JSON, and can produce
-  `source_items.csv` in one step. It requires the CLI to be installed and
-  authenticated outside this repository.
+  Longbridge CLI for configured keyword searches and/or symbols, writes raw
+  topic JSON, and can produce `source_items.csv` in one step. Prefer keyword
+  discovery plus author allowlist when the goal is to discover which stocks
+  followed community experts are discussing. It requires the CLI to be
+  installed and authenticated outside this repository.
 - `scripts/extract_source_mentions.py` converts `source_items.csv` into normalized event rows by deterministic alias matching.
 - `scripts/import_source_events.py` remains available when upstream records are already normalized.
 

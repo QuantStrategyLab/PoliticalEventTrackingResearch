@@ -26,6 +26,15 @@ def load_symbols(path: str | Path) -> list[str]:
     return list(dict.fromkeys(symbols))
 
 
+def load_keywords(path: str | Path) -> list[str]:
+    keywords: list[str] = []
+    for row in read_csv_rows(path):
+        keyword = (row.get("keyword") or "").strip()
+        if keyword:
+            keywords.append(keyword)
+    return list(dict.fromkeys(keywords))
+
+
 def run_longbridge_json(args: Sequence[str], *, runner: Runner = subprocess.run) -> Any:
     command = ["longbridge", *args, "--format", "json"]
     completed = runner(command, capture_output=True, text=True, check=False)
@@ -39,9 +48,11 @@ def run_longbridge_json(args: Sequence[str], *, runner: Runner = subprocess.run)
 
 
 def fetch_longbridge_cli_topics(
-    symbols_path: str | Path,
     raw_output_path: str | Path,
     *,
+    symbols_path: str | Path | None = None,
+    keywords_path: str | Path | None = None,
+    keyword_count: int = 20,
     source_items_output_path: str | Path | None = None,
     author_allowlist_path: str | Path | None = None,
     include_details: bool = False,
@@ -49,12 +60,24 @@ def fetch_longbridge_cli_topics(
     runner: Runner = subprocess.run,
 ) -> list[dict[str, Any]]:
     topics_by_id: dict[str, dict[str, Any]] = {}
-    for symbol in load_symbols(symbols_path):
-        payload = run_longbridge_json(["topic", symbol], runner=runner)
-        for item in iter_topic_items(payload):
-            topic_id = str(item.get("id") or "").strip()
-            if topic_id:
-                topics_by_id[topic_id] = item
+    if not symbols_path and not keywords_path:
+        raise LongbridgeCliError("At least one of --symbols or --keywords is required.")
+
+    if symbols_path:
+        for symbol in load_symbols(symbols_path):
+            payload = run_longbridge_json(["topic", symbol], runner=runner)
+            for item in iter_topic_items(payload):
+                topic_id = str(item.get("id") or "").strip()
+                if topic_id:
+                    topics_by_id[topic_id] = item
+
+    if keywords_path:
+        for keyword in load_keywords(keywords_path):
+            payload = run_longbridge_json(["topic", "search", keyword, "--count", str(keyword_count)], runner=runner)
+            for item in iter_topic_items(payload):
+                topic_id = str(item.get("id") or "").strip()
+                if topic_id:
+                    topics_by_id[topic_id] = item
 
     if include_details:
         for topic_id in list(topics_by_id):
@@ -82,7 +105,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Fetch Longbridge community topics through the official Longbridge CLI."
     )
-    parser.add_argument("--symbols", required=True, help="CSV with a symbol column, e.g. NVDA.US.")
+    parser.add_argument("--symbols", help="Optional CSV with a symbol column, e.g. NVDA.US.")
+    parser.add_argument("--keywords", help="Optional CSV with a keyword column for topic search discovery.")
+    parser.add_argument("--keyword-count", type=int, default=20, help="Longbridge topic search count per keyword.")
     parser.add_argument("--raw-output", required=True, help="Output raw Longbridge topic JSON.")
     parser.add_argument("--source-items-output", help="Optional output source_items CSV.")
     parser.add_argument("--author-allowlist", help="Optional followed-author allowlist CSV path.")
@@ -95,8 +120,10 @@ def main(argv: list[str] | None = None) -> None:
     args = build_arg_parser().parse_args(argv)
     try:
         fetch_longbridge_cli_topics(
-            args.symbols,
             args.raw_output,
+            symbols_path=args.symbols,
+            keywords_path=args.keywords,
+            keyword_count=args.keyword_count,
             source_items_output_path=args.source_items_output,
             author_allowlist_path=args.author_allowlist,
             include_details=args.include_details,

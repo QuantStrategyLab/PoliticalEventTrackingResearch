@@ -6,8 +6,8 @@ Longbridge 可以作为“社区高手观点/高收益用户观点”的研究�
 
 当前官方能力更适合两种方式：
 
-- 按股票代码拉社区 topics，再按 topic id 拉全文详情。
-- 用 topic search 按关键词搜索，再拉详情。
+- 优先用 topic search 按主题关键词搜索，再拉详情，从正文里抽股票。
+- 按股票代码拉社区 topics 只适合补充验证，不适合作为“大佬先说了什么股票”的主入口。
 
 我没有在官方文档里看到“我关注的人动态流” endpoint。因此如果要只追踪你关注的大佬，需要维护一个本地作者白名单：
 
@@ -36,7 +36,7 @@ python scripts/import_longbridge_topics.py \
 
 ```bash
 python scripts/fetch_longbridge_cli_topics.py \
-  --symbols config/longbridge_topic_symbols.csv \
+  --keywords config/longbridge_topic_keywords.csv \
   --include-details \
   --raw-output data/output/longbridge_topics.raw.json \
   --source-items-output data/output/longbridge_source_items.csv \
@@ -71,3 +71,4 @@ python scripts/extract_source_mentions.py \
 - 如果只导入 JSON：你需要从 Longbridge CLI/SDK 或网页手工拿到 topic list/detail JSON。
 - 如果自动拉取：需要安装 Longbridge CLI，并完成官方 OAuth 登录。
 - 如果要只看“你关注的大佬”：需要把作者 `member_id` 或显示名填入 `data/live/longbridge_followed_authors.csv`。
+- 如果要先听大佬说股票：维护 `config/longbridge_topic_keywords.csv`，从宽主题搜索开始，不要从股票列表开始。

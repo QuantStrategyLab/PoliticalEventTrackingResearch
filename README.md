@@ -116,11 +116,11 @@ python scripts/import_longbridge_topics.py \
 ```
 
 If the official Longbridge CLI is installed and authenticated, fetch configured
-symbols directly:
+keyword searches directly:
 
 ```bash
 python scripts/fetch_longbridge_cli_topics.py \
-  --symbols config/longbridge_topic_symbols.csv \
+  --keywords config/longbridge_topic_keywords.csv \
   --include-details \
   --raw-output data/output/longbridge_topics.raw.json \
   --source-items-output data/output/longbridge_source_items.csv \
