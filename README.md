@@ -154,3 +154,15 @@ This repo does not own:
 3. Add public-remarks ingestion from stable government or issuer pages.
 4. Backfill enough point-in-time events to evaluate hit rate, lag, and false
    positives before considering any downstream strategy contract.
+
+## Cross-Sector Source Principle
+
+Stable source ingestion is not limited to AI.  Semiconductors, data-center power,
+cybersecurity, defense, energy, financials, healthcare, consumer platforms,
+industrials, and EV/auto themes can all enter the same `source_items.csv` /
+`source_events.csv` structure when durable primary sources exist.
+
+Theme membership and long-horizon semantic bias belong in
+`AiLongHorizonSignalPipelines`; this repository only preserves point-in-time
+factual evidence so the source boundary is not changed just because a symbol is
+currently popular.

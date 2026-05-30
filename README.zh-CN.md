@@ -110,3 +110,9 @@ python -m pytest -q
 本仓库先解决前两步的数据结构和复盘框架；第三步需要更多点位和真实行情输入。后续如果需要 LLM 处理长文本，只能作为可替换的抽取工具，不能把模型判断结果写成核心信号合同。
 
 免费数据源配置见 [docs/free_source_setup.zh-CN.md](docs/free_source_setup.zh-CN.md)。
+
+## 跨板块来源原则
+
+稳定源不局限于 AI 板块。半导体、数据中心电力、网络安全、国防、能源、金融、医疗、消费平台、工业和 EV/汽车等方向，只要有 SEC、官方政策、发行人公告、政府采购或其他一手来源，都可以进入同一套 `source_items.csv` / `source_events.csv` 结构。
+
+主题归属和长期语义判断由 `AiLongHorizonSignalPipelines` 维护；本仓库只负责点时事实证据，避免因为短期热点临时改变采集边界。

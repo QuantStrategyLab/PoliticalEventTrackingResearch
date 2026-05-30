@@ -44,3 +44,17 @@ later only if a stable official interface and clear operating policy exist.
 - `high`: official government source or direct filing with stable URL.
 - `medium`: issuer release or other primary issuer material.
 - `low`: financial-media lead pending primary source review.
+
+## Cross-Sector Coverage Boundary
+
+Stable source coverage should remain cross-sector and should not be limited to AI
+or the current market hot list.  The source layer can collect official evidence
+for semiconductors, data-center power, cybersecurity, defense, energy,
+financials, healthcare, consumer platforms, industrials, crypto infrastructure,
+and EV/auto themes when a durable primary source exists.
+
+Theme membership and long-horizon semantic bias are owned by
+`AiLongHorizonSignalPipelines`.  This repository only emits point-in-time source
+items and events with URLs, dates, source type, and confidence.  A source item
+must not be promoted just because a theme or symbol is popular in the current
+market.
