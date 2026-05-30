@@ -1,0 +1,3 @@
+query_id,query,source_type,author_label
+example-official,from:example EVT1 -is:retweet,verified_social_post,Example X Account
+

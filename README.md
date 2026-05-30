@@ -79,6 +79,22 @@ See `docs/source_ingestion_options.md` for RSS/API/scraping tradeoffs.
 `.github/workflows/rss_source_pipeline.yml` fetches configured RSS/Atom feeds,
 extracts mentions, builds a tracker, and uploads the results as an artifact.
 
+Fetch X recent-search results when `X_BEARER_TOKEN` is available:
+
+```bash
+X_BEARER_TOKEN=... python scripts/fetch_x_recent_search.py \
+  --queries examples/x_queries.example.csv \
+  --output data/output/x_source_items.example.csv
+```
+
+Convert a Truth Social JSON export into `source_items.csv`:
+
+```bash
+python scripts/import_truthsocial_export.py \
+  --input examples/truthsocial_export.example.json \
+  --output data/output/truthsocial_source_items.example.csv
+```
+
 `.github/workflows/source_event_pipeline.yml` runs the same extraction and
 uploads `source_events.csv` plus `source_tracker.csv` as a GitHub Actions
 artifact. It is intentionally artifact-only and does not publish recommendations.

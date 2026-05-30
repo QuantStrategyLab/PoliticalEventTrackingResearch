@@ -21,6 +21,8 @@ petr-import-official-events = "political_event_tracking_research.official_event_
 petr-import-source-events = "political_event_tracking_research.official_event_import:main"
 petr-extract-source-mentions = "political_event_tracking_research.source_mention_extract:main"
 petr-fetch-rss-sources = "political_event_tracking_research.rss_source_fetch:main"
+petr-fetch-x-recent-search = "political_event_tracking_research.x_recent_search:main"
+petr-import-truthsocial-export = "political_event_tracking_research.truthsocial_export_import:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

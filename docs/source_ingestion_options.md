@@ -25,6 +25,10 @@ RSS/API/export/scrape
 ## Implementation Notes
 
 - `scripts/fetch_rss_sources.py` fetches RSS/Atom feeds into `source_items.csv`.
+- `scripts/fetch_x_recent_search.py` fetches X API v2 Recent Search into
+  `source_items.csv`. It requires `X_BEARER_TOKEN`.
+- `scripts/import_truthsocial_export.py` converts manually or compliantly
+  exported Truth Social JSON into `source_items.csv`.
 - `scripts/extract_source_mentions.py` converts `source_items.csv` into normalized event rows by deterministic alias matching.
 - `scripts/import_source_events.py` remains available when upstream records are already normalized.
 
@@ -34,4 +38,3 @@ RSS/API/export/scrape
 - X API access and pricing can change; keep this as an adapter, not a hard dependency.
 - Truth Social third-party feeds should be treated as fragile until a stable primary interface is available.
 - Media leads must stay low confidence until independently verified.
-

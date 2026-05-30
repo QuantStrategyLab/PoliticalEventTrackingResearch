@@ -77,6 +77,22 @@ RSS、API 和抓取方案的取舍见 `docs/source_ingestion_options.md`。
 `.github/workflows/rss_source_pipeline.yml` 会拉取配置的 RSS/Atom，抽取 mention，
 生成 tracker，并上传为 artifact。
 
+如果配置了 `X_BEARER_TOKEN`，可以拉取 X recent search：
+
+```bash
+X_BEARER_TOKEN=... python scripts/fetch_x_recent_search.py \
+  --queries examples/x_queries.example.csv \
+  --output data/output/x_source_items.example.csv
+```
+
+Truth Social 当前按手工/合规导出的 JSON 接入：
+
+```bash
+python scripts/import_truthsocial_export.py \
+  --input examples/truthsocial_export.example.json \
+  --output data/output/truthsocial_source_items.example.csv
+```
+
 `.github/workflows/source_event_pipeline.yml` 会生成 `source_events.csv` 和
 `source_tracker.csv` 并上传为 GitHub Actions artifact。它只产出事件 artifact，不生成投资建议。
 
