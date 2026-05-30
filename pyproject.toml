@@ -25,6 +25,7 @@ petr-fetch-x-recent-search = "political_event_tracking_research.x_recent_search:
 petr-import-truthsocial-export = "political_event_tracking_research.truthsocial_export_import:main"
 petr-import-longbridge-topics = "political_event_tracking_research.longbridge_topic_import:main"
 petr-fetch-longbridge-cli-topics = "political_event_tracking_research.longbridge_cli_fetch:main"
+petr-import-longbridge-profiles = "political_event_tracking_research.longbridge_profile_import:main"
 petr-fetch-truthsocial-public = "political_event_tracking_research.truthsocial_public_fetch:main"
 
 [tool.setuptools]

@@ -70,5 +70,15 @@ python scripts/extract_source_mentions.py \
 
 - 如果只导入 JSON：你需要从 Longbridge CLI/SDK 或网页手工拿到 topic list/detail JSON。
 - 如果自动拉取：需要安装 Longbridge CLI，并完成官方 OAuth 登录。
-- 如果要只看“你关注的大佬”：需要把作者 `member_id` 或显示名填入 `data/live/longbridge_followed_authors.csv`。
+- 如果要只看“你关注的大佬”：优先提供 Longbridge 主页分享链接，本仓库会从 `/profiles/{member_id}` 中提取稳定 `member_id` 并更新 `data/live/longbridge_followed_authors.csv`。只有截图时才退化为昵称匹配。
 - 如果要先听大佬说股票：维护 `config/longbridge_topic_keywords.csv`，从宽主题搜索开始，不要从股票列表开始。
+
+从主页分享链接导入：
+
+```bash
+python scripts/import_longbridge_profiles.py \
+  --profile-url "https://longbridge.com/profiles/15228814?channel=m15228814" \
+  --allowlist data/live/longbridge_followed_authors.csv
+```
+
+导入后会保存 `member_id`、昵称、主页 URL、粉丝数、动态数、获赞收藏等字段。过滤器仍只依赖 `member_id/name`，所以新增字段兼容旧流程。
