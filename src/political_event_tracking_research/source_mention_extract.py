@@ -60,6 +60,8 @@ def load_aliases(path: str | Path) -> list[MentionAlias]:
 
 def alias_pattern(alias: str) -> re.Pattern[str]:
     escaped = re.escape(alias)
+    if re.fullmatch(r"[A-Za-z]", alias):
+        return re.compile(rf"(?<![A-Za-z0-9])\${escaped}(?![A-Za-z0-9])", re.IGNORECASE)
     if re.fullmatch(r"[A-Za-z][A-Za-z0-9.\-]{0,9}", alias):
         return re.compile(rf"(?<![A-Za-z0-9$])\$?{escaped}(?![A-Za-z0-9])", re.IGNORECASE)
     return re.compile(escaped, re.IGNORECASE)
@@ -145,4 +147,3 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
-

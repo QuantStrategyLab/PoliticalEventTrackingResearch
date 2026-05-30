@@ -1,0 +1,40 @@
+symbol,name,aliases
+AAPL,Apple,Apple|AAPL|iPhone|iPad|Mac|Tim Cook
+AMD,Advanced Micro Devices,AMD|Advanced Micro Devices|Radeon|EPYC|Instinct
+AMZN,Amazon,Amazon|AMZN|AWS|Amazon Web Services|Project Kuiper
+AVGO,Broadcom,Broadcom|AVGO|VMware
+BA,Boeing,Boeing|BA|737 MAX|Starliner
+COIN,Coinbase,Coinbase|COIN|crypto exchange
+CRWD,CrowdStrike,CrowdStrike|CRWD|Falcon cybersecurity
+CVX,Chevron,Chevron|CVX
+ENPH,Enphase Energy,Enphase|ENPH|solar inverter
+F,Ford,Ford|F|F-150|Mustang Mach-E
+GE,GE Aerospace,GE Aerospace|General Electric|GE|jet engine
+GME,GameStop,GameStop|GME
+GOOGL,Alphabet,Alphabet|Google|GOOGL|GOOG|Gemini|Waymo
+INTC,Intel,Intel|INTC|foundry|CHIPS Act
+IONQ,IonQ,IonQ|IONQ|quantum computing
+JPM,JPMorgan Chase,JPMorgan|JPMorgan Chase|JPM|Jamie Dimon
+LMT,Lockheed Martin,Lockheed Martin|LMT|F-35|missile defense
+META,Meta Platforms,Meta|META|Facebook|Instagram|WhatsApp|Llama
+MSFT,Microsoft,Microsoft|MSFT|Azure|OpenAI|Copilot
+MSTR,Strategy,Strategy|MicroStrategy|MSTR|Michael Saylor|Bitcoin treasury
+MU,Micron Technology,Micron|MU|HBM|DRAM|NAND
+NEE,NextEra Energy,NextEra|NEE|renewable energy
+NOC,Northrop Grumman,Northrop Grumman|NOC|B-21
+NVDA,NVIDIA,NVIDIA|Nvidia|NVDA|Blackwell|CUDA|GPU
+OKLO,Oklo,Oklo|OKLO|nuclear reactor|advanced nuclear
+ORCL,Oracle,Oracle|ORCL|cloud infrastructure
+PANW,Palo Alto Networks,Palo Alto Networks|PANW|cybersecurity
+PLTR,Palantir,Palantir|PLTR|Gotham|Foundry|AIP
+QCOM,Qualcomm,Qualcomm|QCOM|Snapdragon
+RBLX,Roblox,Roblox|RBLX
+RTX,RTX,RTX|Raytheon|Pratt Whitney|missile
+SMCI,Super Micro Computer,Supermicro|Super Micro|SMCI|AI server
+SMR,NuScale Power,NuScale|SMR|small modular reactor
+SOFI,SoFi Technologies,SoFi|SOFI
+TSLA,Tesla,Tesla|TSLA|Elon Musk|Cybertruck|FSD|Optimus|xAI
+TSM,Taiwan Semiconductor,TSMC|Taiwan Semiconductor|TSM|foundry
+UNH,UnitedHealth Group,UnitedHealth|UNH|UnitedHealthcare
+VRT,Vertiv,Vertiv|VRT|data center power|liquid cooling
+XOM,Exxon Mobil,Exxon|ExxonMobil|XOM

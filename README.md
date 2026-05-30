@@ -99,6 +99,9 @@ python scripts/import_truthsocial_export.py \
 uploads `source_events.csv` plus `source_tracker.csv` as a GitHub Actions
 artifact. It is intentionally artifact-only and does not publish recommendations.
 
+Free-source setup notes are in
+[`docs/free_source_setup.zh-CN.md`](docs/free_source_setup.zh-CN.md).
+
 Run the synthetic event study:
 
 ```bash

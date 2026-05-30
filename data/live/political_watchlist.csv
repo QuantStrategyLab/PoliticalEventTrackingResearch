@@ -1,0 +1,39 @@
+symbol,name,bucket,research_status,thesis,source_url
+AAPL,Apple,named_mentioned,watchlist,"AI devices, supply-chain, tariff, antitrust, and platform-policy watch.",https://www.apple.com/investor-relations/
+AMD,Advanced Micro Devices,named_mentioned,watchlist,"AI accelerator and semiconductor export-control watch.",https://ir.amd.com/
+AMZN,Amazon,named_mentioned,watchlist,"Cloud AI, government procurement, logistics, and antitrust watch.",https://ir.aboutamazon.com/
+AVGO,Broadcom,named_mentioned,watchlist,"AI networking, VMware, and semiconductor policy watch.",https://investors.broadcom.com/
+BA,Boeing,policy_capital,watchlist,"Aerospace, defense procurement, export, and safety-regulatory watch.",https://investors.boeing.com/
+COIN,Coinbase,named_mentioned,watchlist,"Crypto policy, SEC enforcement, and market-structure watch.",https://investor.coinbase.com/
+CRWD,CrowdStrike,policy_capital,watchlist,"Cybersecurity and government security-spend watch.",https://ir.crowdstrike.com/
+CVX,Chevron,policy_capital,watchlist,"Energy policy, permitting, oil/gas, and geopolitical-risk watch.",https://chevroncorp.gcs-web.com/
+ENPH,Enphase Energy,policy_capital,watchlist,"Solar, tariff, tax-credit, and grid policy watch.",https://investor.enphase.com/
+F,Ford,policy_capital,watchlist,"EV subsidy, tariff, labor, and industrial-policy watch.",https://shareholder.ford.com/
+GE,GE Aerospace,policy_capital,watchlist,"Aerospace procurement and export-control watch.",https://www.geaerospace.com/investor-relations
+GOOGL,Alphabet,named_mentioned,watchlist,"AI, antitrust, cloud, search, and autonomous-driving policy watch.",https://abc.xyz/investor/
+INTC,Intel,policy_capital,watchlist,"CHIPS Act, foundry, export-control, and domestic semiconductor policy watch.",https://www.intc.com/
+IONQ,IonQ,named_mentioned,watchlist,"Quantum computing and government research funding watch.",https://investors.ionq.com/
+JPM,JPMorgan Chase,named_mentioned,watchlist,"Bank regulation, rates, credit, and market-structure watch.",https://www.jpmorganchase.com/ir
+LMT,Lockheed Martin,policy_capital,watchlist,"Defense procurement, missile defense, and geopolitics watch.",https://investors.lockheedmartin.com/
+META,Meta Platforms,named_mentioned,watchlist,"AI, social regulation, privacy, antitrust, and metaverse watch.",https://investor.fb.com/
+MSFT,Microsoft,named_mentioned,watchlist,"AI, cloud procurement, antitrust, and cybersecurity watch.",https://www.microsoft.com/en-us/Investor
+MSTR,Strategy,named_mentioned,watchlist,"Bitcoin treasury, crypto regulation, and capital-market sentiment watch.",https://www.strategy.com/investor-relations
+MU,Micron Technology,policy_capital,watchlist,"Memory, HBM, export-control, and domestic semiconductor policy watch.",https://investors.micron.com/
+NEE,NextEra Energy,policy_capital,watchlist,"Power demand, renewable policy, grid, and data-center energy watch.",https://www.investor.nexteraenergy.com/
+NOC,Northrop Grumman,policy_capital,watchlist,"Defense procurement, drone/space, and geopolitical-risk watch.",https://investor.northropgrumman.com/
+NVDA,NVIDIA,policy_capital,watchlist,"AI accelerator, export-control, data-center, and sovereign AI policy watch.",https://investor.nvidia.com/
+OKLO,Oklo,policy_capital,watchlist,"Advanced nuclear, data-center power, and DOE/NRC policy watch.",https://oklo.com/investors/
+ORCL,Oracle,named_mentioned,watchlist,"Cloud infrastructure, sovereign cloud, and AI data-center watch.",https://investor.oracle.com/
+PANW,Palo Alto Networks,policy_capital,watchlist,"Cybersecurity, federal spend, and breach-response watch.",https://investors.paloaltonetworks.com/
+PLTR,Palantir,policy_capital,watchlist,"Defense AI, government procurement, and public-sector software watch.",https://investors.palantir.com/
+QCOM,Qualcomm,named_mentioned,watchlist,"Mobile AI, China exposure, export-control, and auto-chip watch.",https://investor.qualcomm.com/
+RBLX,Roblox,named_mentioned,watchlist,"Youth safety, platform policy, and gaming/metaverse watch.",https://ir.roblox.com/
+RTX,RTX,policy_capital,watchlist,"Defense procurement, aerospace supply chain, and missile-demand watch.",https://investors.rtx.com/
+SMCI,Super Micro Computer,named_mentioned,watchlist,"AI server, data-center supply chain, and governance watch.",https://ir.supermicro.com/
+SMR,NuScale Power,policy_capital,watchlist,"Small modular reactor, nuclear policy, and DOE/NRC watch.",https://www.nuscalepower.com/en/investors
+SOFI,SoFi Technologies,named_mentioned,watchlist,"Fintech, bank regulation, student-loan policy, and consumer-credit watch.",https://investors.sofi.com/
+TSLA,Tesla,named_mentioned,watchlist,"EV, autonomy, energy storage, tariff, safety, and Elon Musk social signal watch.",https://ir.tesla.com/
+TSM,Taiwan Semiconductor,policy_capital,watchlist,"Semiconductor foundry, export-control, Taiwan risk, and CHIPS policy watch.",https://investor.tsmc.com/
+UNH,UnitedHealth Group,named_mentioned,watchlist,"Healthcare policy, Medicare, antitrust, and regulatory watch.",https://www.unitedhealthgroup.com/investors.html
+VRT,Vertiv,policy_capital,watchlist,"Data-center power, cooling, AI infrastructure, and grid constraints watch.",https://investors.vertiv.com/
+XOM,Exxon Mobil,policy_capital,watchlist,"Energy policy, drilling, LNG, and geopolitical-risk watch.",https://corporate.exxonmobil.com/investors

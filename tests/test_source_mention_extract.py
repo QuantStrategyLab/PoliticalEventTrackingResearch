@@ -17,6 +17,15 @@ def test_match_symbols_supports_ticker_and_name_aliases() -> None:
     assert match_symbols("PREVT1 should not match.", aliases) == []
 
 
+def test_single_letter_ticker_requires_cash_tag_or_name_alias() -> None:
+    aliases = [MentionAlias(symbol="F", aliases=("F", "Ford", "F-150"))]
+
+    assert match_symbols("5 C.F.R. mentions investment workforce.", aliases) == []
+    assert match_symbols("$F is mentioned.", aliases) == ["F"]
+    assert match_symbols("Ford is mentioned.", aliases) == ["F"]
+    assert match_symbols("F-150 policy is mentioned.", aliases) == ["F"]
+
+
 def test_extract_source_records_outputs_confidence_by_source_type(tmp_path: Path) -> None:
     output = tmp_path / "source_events.csv"
 
@@ -32,4 +41,3 @@ def test_extract_source_records_outputs_confidence_by_source_type(tmp_path: Path
     assert by_symbol["EVT3"]["confidence"] == "low"
     assert by_symbol["EVT4"]["event_type"] == "procurement"
     assert output.exists()
-
