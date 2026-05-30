@@ -7,6 +7,8 @@ from political_event_tracking_research.longbridge_profile_activity_fetch import 
     activity_to_source_row,
     fetch_longbridge_profile_activities,
     load_followed_profiles,
+    profile_activity_auth_headers,
+    resolve_cookie_header,
     write_profile_activity_source_items,
 )
 
@@ -61,6 +63,27 @@ def test_activity_to_source_row_extracts_text_and_counter_ids() -> None:
     }
 
 
+def test_profile_activity_auth_headers_accepts_copied_cookie_header() -> None:
+    headers = profile_activity_auth_headers(
+        "1450684",
+        "https://longbridge.com/profiles/1450684",
+        cookie_header="Cookie: a=b; c=d\n",
+    )
+
+    assert headers["Cookie"] == "a=b; c=d"
+    assert headers["Referer"] == "https://longbridge.com/profiles/1450684"
+
+
+def test_resolve_cookie_header_prefers_explicit_and_file(tmp_path: Path, monkeypatch) -> None:
+    cookie_file = tmp_path / "longbridge.cookie"
+    cookie_file.write_text("Cookie: file_cookie=1\n", encoding="utf-8")
+    monkeypatch.setenv("LONGBRIDGE_COOKIE", "env_cookie=1")
+
+    assert resolve_cookie_header(cookie_header="direct_cookie=1", cookie_file=cookie_file) == "direct_cookie=1"
+    assert resolve_cookie_header(cookie_file=cookie_file) == "file_cookie=1"
+    assert resolve_cookie_header() == "env_cookie=1"
+
+
 def test_write_profile_activity_source_items_deduplicates(tmp_path: Path) -> None:
     raw_profiles = [
         {
@@ -109,6 +132,7 @@ def test_fetch_longbridge_profile_activities_uses_pagination(tmp_path: Path) -> 
     def fake_fetcher(url: str, headers: dict[str, str]) -> dict:
         requested_urls.append(url)
         assert headers["x-app-id"] == "longbridge"
+        assert headers["Cookie"] == "session=abc"
         if "tail_mark=0" in url:
             return {
                 "code": 0,
@@ -130,6 +154,7 @@ def test_fetch_longbridge_profile_activities_uses_pagination(tmp_path: Path) -> 
         raw_output_path=raw_output,
         source_items_output_path=source_items,
         pages=2,
+        cookie_header="Cookie: session=abc",
         fetcher=fake_fetcher,
     )
 

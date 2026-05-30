@@ -4,6 +4,7 @@ import argparse
 import datetime as dt
 import gzip
 import json
+import os
 import time
 import uuid
 import urllib.request
@@ -23,6 +24,7 @@ DEFAULT_USER_AGENT = (
     "(KHTML, like Gecko) Chrome/125.0 Safari/537.36"
 )
 SOURCE_ITEM_FIELDS = ["item_id", "published_at", "source_type", "source_url", "author", "text"]
+COOKIE_ENV_VAR = "LONGBRIDGE_COOKIE"
 
 
 class LongbridgeProfileActivityError(RuntimeError):
@@ -96,6 +98,43 @@ def profile_activity_headers(member_id: str, profile_url: str = "") -> dict[str,
     }
 
 
+def normalize_cookie_header(value: str) -> str:
+    text = value.strip()
+    if not text:
+        return ""
+    for line in text.splitlines():
+        clean_line = line.strip()
+        if clean_line.lower().startswith("cookie:"):
+            return clean_line.split(":", 1)[1].strip()
+    return " ".join(line.strip() for line in text.splitlines() if line.strip())
+
+
+def resolve_cookie_header(
+    *,
+    cookie_header: str | None = None,
+    cookie_file: str | Path | None = None,
+    env_var: str = COOKIE_ENV_VAR,
+) -> str:
+    if cookie_header:
+        return normalize_cookie_header(cookie_header)
+    if cookie_file:
+        return normalize_cookie_header(Path(cookie_file).read_text(encoding="utf-8"))
+    return normalize_cookie_header(os.environ.get(env_var, ""))
+
+
+def profile_activity_auth_headers(
+    member_id: str,
+    profile_url: str = "",
+    *,
+    cookie_header: str = "",
+) -> dict[str, str]:
+    headers = profile_activity_headers(member_id, profile_url)
+    normalized_cookie = normalize_cookie_header(cookie_header)
+    if normalized_cookie:
+        headers["Cookie"] = normalized_cookie
+    return headers
+
+
 def fetch_json_url(url: str, headers: dict[str, str]) -> Any:
     request = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(request, timeout=20) as response:
@@ -133,6 +172,7 @@ def fetch_profile_activity_pages(
     limit: int = 25,
     pages: int = 1,
     action: str | None = "OriginalAll",
+    cookie_header: str = "",
     fetcher: JsonFetcher = fetch_json_url,
     sleep_seconds: float = 0.0,
 ) -> list[dict[str, Any]]:
@@ -146,7 +186,10 @@ def fetch_profile_activity_pages(
             tail_mark=tail_mark,
             action=action,
         )
-        payload = fetcher(url, profile_activity_headers(profile.member_id, profile.profile_url))
+        payload = fetcher(
+            url,
+            profile_activity_auth_headers(profile.member_id, profile.profile_url, cookie_header=cookie_header),
+        )
         if not isinstance(payload, dict):
             raise LongbridgeProfileActivityError(f"Longbridge activity response is not a JSON object: {url}")
         if payload.get("code") not in (None, 0):
@@ -305,6 +348,7 @@ def fetch_longbridge_profile_activities(
     limit: int = 25,
     pages: int = 1,
     action: str | None = "OriginalAll",
+    cookie_header: str = "",
     min_text_chars: int = 1,
     fetcher: JsonFetcher = fetch_json_url,
 ) -> list[dict[str, str]]:
@@ -334,6 +378,7 @@ def fetch_longbridge_profile_activities(
             limit=limit,
             pages=pages,
             action=action,
+            cookie_header=cookie_header,
             fetcher=fetcher,
         )
         raw_profiles.append(
@@ -379,6 +424,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--limit", type=int, default=25)
     parser.add_argument("--pages", type=int, default=1)
     parser.add_argument("--action", default="OriginalAll", help="Longbridge activity action filter. Empty string means all.")
+    parser.add_argument(
+        "--cookie-header",
+        help=(
+            "Optional logged-in Cookie header. Prefer --cookie-file or LONGBRIDGE_COOKIE to avoid shell history leaks."
+        ),
+    )
+    parser.add_argument("--cookie-file", help=f"Optional local file containing a Cookie header. {COOKIE_ENV_VAR} is used if unset.")
     parser.add_argument("--min-text-chars", type=int, default=1)
     return parser
 
@@ -397,6 +449,7 @@ def main(argv: list[str] | None = None) -> None:
             limit=args.limit,
             pages=args.pages,
             action=args.action or None,
+            cookie_header=resolve_cookie_header(cookie_header=args.cookie_header, cookie_file=args.cookie_file),
             min_text_chars=args.min_text_chars,
         )
     except LongbridgeProfileActivityError as exc:

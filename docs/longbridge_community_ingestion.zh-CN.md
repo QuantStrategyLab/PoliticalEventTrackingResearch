@@ -63,6 +63,29 @@ https://m.lbkrs.com/api/forward/v2/social/profiles/{member_id}/activities
 
 它不是官方 OpenAPI。实测结果是：公开发帖账号可以返回 activities；部分主页即使能打开 profile，未登录请求也可能返回 `activities=[]`、`total_count=0`。因此该路径只作为 experimental source，不能绕过登录态或抓取私人关注流。
 
+如果要验证“登录后是否能读到关注账号动态”，不要把账号密码或验证码交给脚本。推荐做法是你在浏览器登录 Longbridge 后，从开发者工具复制 activities 请求的 `Cookie` 请求头，保存到本地未纳入 Git 的文件，例如 `data/input/longbridge.cookie`，再运行：
+
+```bash
+python scripts/fetch_longbridge_profile_activities.py \
+  --author-allowlist data/live/longbridge_followed_authors.csv \
+  --cookie-file data/input/longbridge.cookie \
+  --pages 1 \
+  --raw-output data/output/longbridge_profile_activities.login.raw.json \
+  --source-items-output data/output/longbridge_profile_activity_source_items.login.csv
+```
+
+也可以用环境变量：
+
+```bash
+export LONGBRIDGE_COOKIE='a=b; c=d'
+python scripts/fetch_longbridge_profile_activities.py \
+  --member-id 15228814 \
+  --raw-output data/output/longbridge_profile_activities.login.raw.json \
+  --source-items-output data/output/longbridge_profile_activity_source_items.login.csv
+```
+
+`data/input/*` 默认被 `.gitignore` 忽略，适合临时放 cookie；不要把 cookie 写进已跟踪文件、commit、issue 或 PR。
+
 4. 抽取个股 mention：
 
 ```bash
