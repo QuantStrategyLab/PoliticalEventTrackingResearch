@@ -65,6 +65,20 @@ python scripts/extract_source_mentions.py \
   --output data/output/source_events.example.csv
 ```
 
+Fetch RSS/Atom sources into the same raw item schema:
+
+```bash
+python scripts/fetch_rss_sources.py \
+  --feeds examples/rss_feeds.example.csv \
+  --output data/output/rss_source_items.example.csv \
+  --max-items-per-feed 10
+```
+
+See `docs/source_ingestion_options.md` for RSS/API/scraping tradeoffs.
+
+`.github/workflows/rss_source_pipeline.yml` fetches configured RSS/Atom feeds,
+extracts mentions, builds a tracker, and uploads the results as an artifact.
+
 `.github/workflows/source_event_pipeline.yml` runs the same extraction and
 uploads `source_events.csv` plus `source_tracker.csv` as a GitHub Actions
 artifact. It is intentionally artifact-only and does not publish recommendations.

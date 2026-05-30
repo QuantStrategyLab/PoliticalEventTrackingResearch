@@ -63,6 +63,20 @@ python scripts/extract_source_mentions.py \
   --output data/output/source_events.example.csv
 ```
 
+把 RSS/Atom 拉取为同一个原始文本 schema：
+
+```bash
+python scripts/fetch_rss_sources.py \
+  --feeds examples/rss_feeds.example.csv \
+  --output data/output/rss_source_items.example.csv \
+  --max-items-per-feed 10
+```
+
+RSS、API 和抓取方案的取舍见 `docs/source_ingestion_options.md`。
+
+`.github/workflows/rss_source_pipeline.yml` 会拉取配置的 RSS/Atom，抽取 mention，
+生成 tracker，并上传为 artifact。
+
 `.github/workflows/source_event_pipeline.yml` 会生成 `source_events.csv` 和
 `source_tracker.csv` 并上传为 GitHub Actions artifact。它只产出事件 artifact，不生成投资建议。
 

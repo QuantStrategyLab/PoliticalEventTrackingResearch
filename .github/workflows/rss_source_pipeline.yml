@@ -1,0 +1,60 @@
+name: RSS Source Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      feeds_path:
+        description: "RSS feed config CSV path."
+        required: false
+        default: "examples/rss_feeds.example.csv"
+        type: string
+      aliases_path:
+        description: "Symbol alias CSV path."
+        required: false
+        default: "examples/symbol_aliases.example.csv"
+        type: string
+      max_items_per_feed:
+        description: "Maximum feed items per configured RSS/Atom feed."
+        required: false
+        default: "25"
+        type: string
+  schedule:
+    - cron: "15 12 * * 6"
+
+jobs:
+  build-rss-source-events:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Fetch RSS sources and extract mentions
+        env:
+          FEEDS_PATH: ${{ github.event.inputs.feeds_path || 'examples/rss_feeds.example.csv' }}
+          ALIASES_PATH: ${{ github.event.inputs.aliases_path || 'examples/symbol_aliases.example.csv' }}
+          MAX_ITEMS_PER_FEED: ${{ github.event.inputs.max_items_per_feed || '25' }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/output/rss_source_pipeline
+          python scripts/fetch_rss_sources.py \
+            --feeds "${FEEDS_PATH}" \
+            --output data/output/rss_source_pipeline/source_items.csv \
+            --max-items-per-feed "${MAX_ITEMS_PER_FEED}"
+          python scripts/extract_source_mentions.py \
+            --raw-items data/output/rss_source_pipeline/source_items.csv \
+            --aliases "${ALIASES_PATH}" \
+            --output data/output/rss_source_pipeline/source_events.csv
+          python scripts/build_tracker.py \
+            --watchlist examples/political_watchlist.example.csv \
+            --events data/output/rss_source_pipeline/source_events.csv \
+            --output data/output/rss_source_pipeline/source_tracker.csv
+      - name: Upload RSS source artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: rss-source-pipeline
+          path: data/output/rss_source_pipeline/
+          if-no-files-found: error
+
