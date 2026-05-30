@@ -1,6 +1,5 @@
 item_id,published_at,source_type,source_url,author,text
-truth-demo-1,2026-04-01T14:30:00Z,verified_social_post,https://truthsocial.com/@example/posts/123456,Example Official,"EVT1 is a great partner for American manufacturing."
-x-demo-1,2026-04-02T15:00:00Z,verified_social_post,https://x.com/example/status/1234567890,Example Official,"New funding support for EVT2 and domestic suppliers."
+whitehouse-demo-1,2026-04-01T14:30:00Z,official_remarks,https://www.whitehouse.gov/example/remarks-evt1,White House,"EVT1 is a great partner for American manufacturing."
+agency-demo-1,2026-04-02T15:00:00Z,government_policy,https://www.energy.gov/example/evt2-funding,Energy Department,"New funding support for EVT2 and domestic suppliers."
 media-demo-1,2026-04-03T12:00:00Z,financial_media,https://finance.example.invalid/news/evt3-catalyst,Example Finance,"EVT3 mentioned in market chatter after a possible policy catalyst."
-whitehouse-demo-1,2026-04-04T16:00:00Z,official_remarks,https://www.whitehouse.gov/example/remarks-evt4,White House,"Remarks referenced EVT4 and a contract award."
-
+whitehouse-demo-2,2026-04-04T16:00:00Z,official_remarks,https://www.whitehouse.gov/example/remarks-evt4,White House,"Remarks referenced EVT4 and a contract award."

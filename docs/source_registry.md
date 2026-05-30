@@ -1,15 +1,8 @@
 # Source Registry
 
-This file records source families for future ingestion. A source listed here is
-not automatically trusted; every event still carries its own `source_url` and
-`confidence`.
-
-## Inspiration Sources
-
-- The Longbridge topic below inspired the initial research question. It is not
-  committed as an event seed and should not be treated as evidence without
-  official-source verification:
-  <https://longbridge.com/zh-CN/topics/41260998.md>
+This file records source families for the stable research release. A source
+listed here is not automatically trusted; every event still carries its own
+`source_url` and `confidence`.
 
 ## Candidate Official Sources
 
@@ -21,37 +14,33 @@ not automatically trusted; every event still carries its own `source_url` and
   <https://disclosures-clerk.house.gov/FinancialDisclosure>
 - White House remarks:
   <https://www.whitehouse.gov/remarks/>
-- Longbridge Developers documentation:
-  <https://open.longbridge.com/docs>
+- SEC press releases and EDGAR materials:
+  <https://www.sec.gov/newsroom/press-releases>
+  <https://www.sec.gov/edgar/search/>
+- Federal Register:
+  <https://www.federalregister.gov/>
+- USAspending:
+  <https://www.usaspending.gov/>
 
-## Candidate Primary Social Sources
+## Candidate Issuer Sources
 
-- Truth Social posts from the relevant verified/person-owned account:
-  <https://truthsocial.com/>
-- X posts from the relevant verified/person-owned account:
-  <https://x.com/>
-
-## Candidate Community Research Sources
-
-- Longbridge community topics from official OpenAPI/CLI topic list/detail
-  exports:
-  <https://open.longbridge.com/docs/content/topics>
-  <https://open.longbridge.com/docs/content/topic-detail>
-
-Use Longbridge community posts as research leads, not official confirmations.
-If the operator follows high-quality authors, keep a local author allowlist
-(`member_id`, `name`) and filter imported topics through it.
+- Issuer investor-relations pages, SEC filings, and company press releases.
+- Use `issuer_release` and keep the direct stable URL in `source_url`.
 
 ## Candidate Lead Sources
 
 - Reputable financial media can be used as low-confidence leads only. Leads
   should be upgraded only after matching official filings, official remarks,
-  primary social posts, issuer releases, or other primary material.
+  issuer releases, or other primary material.
+
+## Deferred Sources
+
+The stable release intentionally excludes X / Twitter, Truth Social, and
+Longbridge community/profile/following-list ingestion. They can be revisited
+later only if a stable official interface and clear operating policy exist.
 
 ## Confidence Guide
 
-- `high`: official source or direct filing with stable URL.
-- `medium`: primary social source with a stable, verifiable URL, or issuer
-  release.
-- `low`: financial-media article, Longbridge community lead, or manually
-  transcribed lead pending primary source review.
+- `high`: official government source or direct filing with stable URL.
+- `medium`: issuer release or other primary issuer material.
+- `low`: financial-media lead pending primary source review.

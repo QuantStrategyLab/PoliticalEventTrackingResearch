@@ -5,7 +5,7 @@
 Research-only political event and public disclosure tracking for US equities.
 
 This repository asks whether public disclosure, official remarks, policy capital,
-procurement, and other political/public events can be tracked in a repeatable,
+procurement, and other public events can be tracked in a repeatable,
 point-in-time way.
 
 ## Repository Role
@@ -14,13 +14,20 @@ This is a deterministic research artifact repository. It does not place trades,
 store broker credentials, scrape private accounts, call AI models, or own live
 allocation policy.
 
-The initial research scope is:
+The stable release scope is:
 
-- collect public disclosure, public remark, policy funding, and market reaction
-  events into a consistent CSV schema
+- collect public disclosure, official remark, policy funding, issuer release,
+  financial-media lead, and market reaction events into a consistent CSV schema
 - build a candidate tracker from watchlists and event timelines
 - run small event studies against local daily close price files
 - preserve source links and confidence levels for later manual review
+
+Out of scope for this release:
+
+- X / Twitter ingestion
+- Truth Social ingestion
+- Longbridge community, profile, or following-list ingestion
+- logged-in browser scraping or cookie-based collectors
 
 ## Current Status
 
@@ -30,8 +37,7 @@ They are not investment evidence and are not derived from any article.
 Tracked event families:
 
 - `disclosure_buy`: public financial disclosure or transaction filing
-- `public_mention`: White House, speech, interview, social-media, or media
-  mention
+- `public_mention`: official remarks, issuer statements, or media leads
 - `policy_capital`: government capital, procurement, or industrial-policy
   support
 - `market_reaction`: earnings, contract, analyst, or price reaction marker
@@ -47,7 +53,7 @@ python scripts/build_tracker.py \
   --output data/output/political_tracker.example.csv
 ```
 
-Normalize official, primary social, and media-lead records into the event schema:
+Normalize official, issuer, and media-lead records into the event schema:
 
 ```bash
 python scripts/import_source_events.py \
@@ -55,8 +61,7 @@ python scripts/import_source_events.py \
   --output data/output/official_events.example.csv
 ```
 
-Extract mention events from raw Truth Social / X / official remarks /
-financial-media exports:
+Extract mention events from raw official remarks / RSS / financial-media exports:
 
 ```bash
 python scripts/extract_source_mentions.py \
@@ -74,62 +79,13 @@ python scripts/fetch_rss_sources.py \
   --max-items-per-feed 10
 ```
 
-See `docs/source_ingestion_options.md` for RSS/API/scraping tradeoffs. See
-`docs/longbridge_community_ingestion.zh-CN.md` for Longbridge community lead
-ingestion.
-
 `.github/workflows/rss_source_pipeline.yml` fetches configured RSS/Atom feeds,
 extracts mentions, builds a tracker, and uploads the results as an artifact.
 
-Fetch X recent-search results when `X_BEARER_TOKEN` is available:
-
-```bash
-X_BEARER_TOKEN=... python scripts/fetch_x_recent_search.py \
-  --queries examples/x_queries.example.csv \
-  --output data/output/x_source_items.example.csv
-```
-
-Convert a Truth Social JSON export into `source_items.csv`:
-
-```bash
-python scripts/import_truthsocial_export.py \
-  --input examples/truthsocial_export.example.json \
-  --output data/output/truthsocial_source_items.example.csv
-```
-
-Optionally try the public Truth Social endpoint manually:
-
-```bash
-python scripts/fetch_truthsocial_public.py \
-  --username realDonaldTrump \
-  --output data/output/truthsocial_source_items.csv \
-  --limit 20
-```
-
-Convert Longbridge community topic JSON into low-confidence research leads:
-
-```bash
-python scripts/import_longbridge_topics.py \
-  --input examples/longbridge_topics.example.json \
-  --author-allowlist examples/longbridge_followed_authors.example.csv \
-  --output data/output/longbridge_source_items.example.csv
-```
-
-If the official Longbridge CLI is installed and authenticated, fetch configured
-keyword searches directly:
-
-```bash
-python scripts/fetch_longbridge_cli_topics.py \
-  --keywords config/longbridge_topic_keywords.csv \
-  --include-details \
-  --raw-output data/output/longbridge_topics.raw.json \
-  --source-items-output data/output/longbridge_source_items.csv \
-  --author-allowlist data/live/longbridge_followed_authors.csv
-```
-
-`.github/workflows/source_event_pipeline.yml` runs the same extraction and
-uploads `source_events.csv` plus `source_tracker.csv` as a GitHub Actions
-artifact. It is intentionally artifact-only and does not publish recommendations.
+`.github/workflows/source_event_pipeline.yml` runs the same extraction for an
+operator-provided `source_items.csv` and uploads `source_events.csv` plus
+`source_tracker.csv` as a GitHub Actions artifact. It is intentionally
+artifact-only and does not publish recommendations.
 
 Free-source setup notes are in
 [`docs/free_source_setup.zh-CN.md`](docs/free_source_setup.zh-CN.md).
@@ -192,9 +148,9 @@ This repo does not own:
 
 ## Next Work
 
-1. Add more source adapters and record templates for official filings, official
-   remarks, verified Truth Social / X posts, and financial-media leads.
-2. Add a source adapter for OGE disclosure PDFs or normalized public datasets.
-3. Add public-remarks ingestion from White House pages and social-media exports.
+1. Add more templates for official filings, official remarks, issuer releases,
+   government procurement, and financial-media leads.
+2. Add source adapters for OGE disclosure PDFs or normalized public datasets.
+3. Add public-remarks ingestion from stable government or issuer pages.
 4. Backfill enough point-in-time events to evaluate hit rate, lag, and false
    positives before considering any downstream strategy contract.

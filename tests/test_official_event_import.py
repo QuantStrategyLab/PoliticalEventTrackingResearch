@@ -24,9 +24,8 @@ def test_import_official_events_normalizes_to_event_schema(tmp_path: Path) -> No
     assert rows[0]["confidence"] == "high"
     by_id = {row["event_id"]: row for row in rows}
     assert by_id["official-issuer-release-demo-issuer-evt3"]["confidence"] == "medium"
-    assert by_id["official-verified-social-post-demo-social-evt4"]["confidence"] == "medium"
     assert by_id["official-financial-media-demo-media-evt5"]["confidence"] == "low"
-    assert rows[-3]["event_id"] == "official-issuer-release-demo-issuer-evt3"
+    assert rows[-2]["event_id"] == "official-issuer-release-demo-issuer-evt3"
     assert rows[-1]["event_id"] == "official-financial-media-demo-media-evt5"
     assert rows[-1]["confidence"] == "low"
 
@@ -47,7 +46,7 @@ def test_government_records_reject_non_gov_urls() -> None:
         normalize_records([record])
 
 
-def test_verified_social_records_reject_untrusted_hosts() -> None:
+def test_verified_social_records_are_not_in_stable_source_set() -> None:
     record = OfficialRecord(
         record_id="bad-social-record",
         record_date="2026-01-10",
@@ -59,11 +58,11 @@ def test_verified_social_records_reject_untrusted_hosts() -> None:
         summary="Not a primary social source.",
     )
 
-    with pytest.raises(ValueError, match="verified social source URLs"):
+    with pytest.raises(ValueError, match="unsupported source_type"):
         normalize_records([record])
 
 
-def test_community_lead_records_are_low_confidence() -> None:
+def test_community_lead_records_are_not_in_stable_source_set() -> None:
     record = OfficialRecord(
         record_id="longbridge-topic",
         record_date="2026-02-02",
@@ -75,6 +74,5 @@ def test_community_lead_records_are_low_confidence() -> None:
         summary="Community research lead.",
     )
 
-    rows = normalize_records([record])
-
-    assert rows[0]["confidence"] == "low"
+    with pytest.raises(ValueError, match="unsupported source_type"):
+        normalize_records([record])

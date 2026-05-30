@@ -41,26 +41,8 @@ def test_extract_source_records_outputs_confidence_by_source_type(tmp_path: Path
     )
 
     by_symbol = {row["symbol"]: row for row in rows}
-    assert by_symbol["EVT1"]["confidence"] == "medium"
+    assert by_symbol["EVT1"]["confidence"] == "high"
     assert by_symbol["EVT2"]["event_type"] == "policy_capital"
     assert by_symbol["EVT3"]["confidence"] == "low"
     assert by_symbol["EVT4"]["event_type"] == "procurement"
     assert output.exists()
-
-
-def test_community_research_leads_stay_public_mentions(tmp_path: Path) -> None:
-    raw_items = tmp_path / "source_items.csv"
-    raw_items.write_text(
-        "item_id,published_at,source_type,source_url,author,text\n"
-        "lb-1,2026-02-02T02:40:00Z,community_research_lead,https://longbridge.cn/topics/1,"
-        "Longbridge:Expert,Micron contract funding support looks bullish.\n",
-        encoding="utf-8",
-    )
-    aliases = tmp_path / "aliases.csv"
-    aliases.write_text("symbol,name,aliases\nMU,Micron,Micron|MU\n", encoding="utf-8")
-    output = tmp_path / "source_events.csv"
-
-    rows = extract_source_records(raw_items, aliases, output)
-
-    assert rows[0]["event_type"] == "public_mention"
-    assert rows[0]["confidence"] == "low"

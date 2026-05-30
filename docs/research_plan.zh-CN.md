@@ -2,12 +2,12 @@
 
 ## 目标
 
-验证公开人物持仓披露、公开点名、政策资金事件与美股短中期收益之间是否存在可复现关系。
+验证公开人物持仓披露、官方公开点名、政策资金事件与美股短中期收益之间是否存在可复现关系。
 
 这类研究思路的主要假设是：
 
 - 先出现于公开持仓或交易披露
-- 再出现于公开讲话、采访、白宫材料或社媒文本
+- 再出现于官方讲话、公告、白宫材料或媒体 lead
 - 最后在 K 线、财报、政府采购或分析师事件中体现反应
 
 ## 研究单元
@@ -27,22 +27,23 @@
 
 - `watchlist_only`：只在公开持仓或研究观察池中出现，尚未触发点名
 - `disclosure_buy`：公开披露中出现买入或新增持仓
-- `public_mention`：公开讲话、采访、社媒、白宫材料中被点名
+- `public_mention`：官方讲话、公告、白宫材料或媒体 lead 中被点名
 - `policy_capital`：政策资金、政府采购、入股、产业政策支持
 - `market_reaction`：财报、合同、评级或价格反应，用来标记后验验证点
 
 ## 数据源优先级
 
-1. 官方披露：OGE、国会披露、SEC 或发行人公告，默认 `high` confidence。
+1. 官方披露：OGE、国会披露、SEC 或政府网站，默认 `high` confidence。
 2. 官方讲话：WhiteHouse.gov、官方转录、正式新闻稿，默认 `high` confidence。
-3. 可审计社媒：Truth Social、X 的本人/官方账号可复核 URL 或导出，默认 `medium` confidence。
+3. 发行人公告：公司 IR、SEC filing、公司新闻稿，默认 `medium` confidence。
 4. 主流财经媒体：只能做 lead，默认 `low` confidence，需要后续找到一级来源。
-5. 市场数据：Longbridge、Yahoo、Polygon、Nasdaq Data Link 或 QuantStrategyLab 已有价格输入。
-6. 其他社区文章：只做灵感，不直接作为事件证据入库。
+5. 市场数据：Yahoo、Polygon、Nasdaq Data Link 或 QuantStrategyLab 已有价格输入。
+
+X / Truth Social / Longbridge 社区类来源先不进入当前稳定版。
 
 ## 原始文本抽取入口
 
-`source_items` schema 用来接 Truth Social、X、白宫讲话、财经媒体等外部导出：
+`source_items` schema 用来接官方讲话、RSS、发行人公告、财经媒体等外部导出：
 
 ```text
 item_id,published_at,source_type,source_url,author,text
@@ -57,7 +58,7 @@ item_id,published_at,source_type,source_url,author,text
 
 - 能从同一 schema 载入合成示例和官方来源事件。
 - 能拒绝把非官方文章 URL 当成政府类事件来源。
-- 能接收 Truth Social / X 的认证社媒来源，并把财经媒体降级为低置信 lead。
+- 能把财经媒体降级为低置信 lead。
 - 能生成候选追踪表，区分已触发点名和仅观察池标的。
 - 能在本地价格 CSV 上计算事件后收益。
 - 能记录数据来源、置信度和未验证事项。

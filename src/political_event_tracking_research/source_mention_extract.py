@@ -78,7 +78,7 @@ def match_symbols(text: str, aliases: list[MentionAlias]) -> list[str]:
 def infer_event_type(item: RawSourceItem) -> str:
     source_type = item.source_type
     text = item.text.lower()
-    if source_type in {"financial_media", "community_research_lead"}:
+    if source_type == "financial_media":
         return "public_mention"
     if "contract" in text or "procurement" in text or "award" in text:
         return "procurement"

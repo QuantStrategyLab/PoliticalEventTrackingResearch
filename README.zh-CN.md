@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-QuantStrategyLab 的确定性研究仓库，用来验证“公开持仓/交易披露 + 公开讲话/社媒点名 + 政策资金事件”能否形成可追踪的美股事件线索。
+QuantStrategyLab 的确定性研究仓库，用来验证“公开持仓/交易披露 + 官方讲话/公开材料 + 政策资金事件”能否形成可追踪的美股事件线索。
 
 ## 仓库定位
 
@@ -10,10 +10,17 @@ QuantStrategyLab 的确定性研究仓库，用来验证“公开持仓/交易�
 
 它负责：
 
-- 把公开披露、公开讲话、政策资金、市场反应事件整理成统一 CSV 结构
+- 把公开披露、官方讲话、政策资金、发行人公告、财经媒体 lead、市场反应事件整理成统一 CSV 结构
 - 从观察池和事件时间线生成候选追踪表
 - 用本地日线收盘价做轻量事件研究
 - 保留来源链接、置信度和人工复核入口
+
+本次稳定发布版先不包含：
+
+- X / Twitter 采集
+- Truth Social 采集
+- Longbridge 社区、用户主页、关注列表采集
+- 登录态页面抓取或 Cookie 型采集器
 
 它不负责：
 
@@ -31,7 +38,7 @@ QuantStrategyLab 的确定性研究仓库，用来验证“公开持仓/交易�
 事件类型：
 
 - `disclosure_buy`：公开财务披露或交易披露中的买入
-- `public_mention`：白宫、演讲、采访、社媒或媒体中的公开点名
+- `public_mention`：官方讲话、发行人声明或财经媒体 lead 中的公开点名
 - `policy_capital`：政府入股、采购、产业政策资金支持
 - `market_reaction`：财报、合同、分析师评级或价格反应标记
 
@@ -46,7 +53,7 @@ python scripts/build_tracker.py \
   --output data/output/political_tracker.example.csv
 ```
 
-把官方来源、认证社媒和财经媒体线索归一化为事件 schema：
+把官方来源、发行人公告和财经媒体线索归一化为事件 schema：
 
 ```bash
 python scripts/import_source_events.py \
@@ -54,7 +61,7 @@ python scripts/import_source_events.py \
   --output data/output/official_events.example.csv
 ```
 
-从 Truth Social / X / 官方讲话 / 财经媒体导出的原始文本 CSV 抽取 mention 事件：
+从官方讲话 / RSS / 财经媒体导出的原始文本 CSV 抽取 mention 事件：
 
 ```bash
 python scripts/extract_source_mentions.py \
@@ -72,59 +79,9 @@ python scripts/fetch_rss_sources.py \
   --max-items-per-feed 10
 ```
 
-RSS、API 和抓取方案的取舍见 `docs/source_ingestion_options.md`。
-Longbridge 社区高手内容接入见 `docs/longbridge_community_ingestion.zh-CN.md`。
+`.github/workflows/rss_source_pipeline.yml` 会拉取配置的 RSS/Atom，抽取 mention，生成 tracker，并上传为 artifact。
 
-`.github/workflows/rss_source_pipeline.yml` 会拉取配置的 RSS/Atom，抽取 mention，
-生成 tracker，并上传为 artifact。
-
-如果配置了 `X_BEARER_TOKEN`，可以拉取 X recent search：
-
-```bash
-X_BEARER_TOKEN=... python scripts/fetch_x_recent_search.py \
-  --queries examples/x_queries.example.csv \
-  --output data/output/x_source_items.example.csv
-```
-
-Truth Social 当前按手工/合规导出的 JSON 接入：
-
-```bash
-python scripts/import_truthsocial_export.py \
-  --input examples/truthsocial_export.example.json \
-  --output data/output/truthsocial_source_items.example.csv
-```
-
-也可以手动尝试公开 Truth Social endpoint；如果平台返回 Cloudflare/HTML，应回退到上面的导出导入路径：
-
-```bash
-python scripts/fetch_truthsocial_public.py \
-  --username realDonaldTrump \
-  --output data/output/truthsocial_source_items.csv \
-  --limit 20
-```
-
-Longbridge 社区内容按“社区研究线索”接入，先导出 topics/detail JSON，再归一化为 `source_items.csv`：
-
-```bash
-python scripts/import_longbridge_topics.py \
-  --input examples/longbridge_topics.example.json \
-  --author-allowlist examples/longbridge_followed_authors.example.csv \
-  --output data/output/longbridge_source_items.example.csv
-```
-
-如果本机已安装并登录 Longbridge CLI，可以直接按配置里的标的拉取：
-
-```bash
-python scripts/fetch_longbridge_cli_topics.py \
-  --keywords config/longbridge_topic_keywords.csv \
-  --include-details \
-  --raw-output data/output/longbridge_topics.raw.json \
-  --source-items-output data/output/longbridge_source_items.csv \
-  --author-allowlist data/live/longbridge_followed_authors.csv
-```
-
-`.github/workflows/source_event_pipeline.yml` 会生成 `source_events.csv` 和
-`source_tracker.csv` 并上传为 GitHub Actions artifact。它只产出事件 artifact，不生成投资建议。
+`.github/workflows/source_event_pipeline.yml` 可处理人工提供的 `source_items.csv`，生成 `source_events.csv` 和 `source_tracker.csv` 并上传为 GitHub Actions artifact。它只产出事件 artifact，不生成投资建议。
 
 用合成价格样本跑事件研究：
 
@@ -147,7 +104,7 @@ python -m pytest -q
 这类“追踪效果”可以拆成三个可验证问题：
 
 1. **能不能第一时间知道谁进入观察池**：需要结构化公开披露和政策/持仓来源。
-2. **能不能捕捉公开点名**：需要按时间记录白宫讲话、采访、社媒和新闻文本。
+2. **能不能捕捉公开点名**：需要按时间记录官方讲话、公告、新闻稿和媒体 lead。
 3. **点名后是否有可交易的统计优势**：需要事件研究和样本外验证，不能只看少数轶事案例。
 
 本仓库先解决前两步的数据结构和复盘框架；第三步需要更多点位和真实行情输入。后续如果需要 LLM 处理长文本，只能作为可替换的抽取工具，不能把模型判断结果写成核心信号合同。
