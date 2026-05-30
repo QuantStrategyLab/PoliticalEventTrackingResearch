@@ -4,9 +4,9 @@
 
 Research-only political event and public disclosure tracking for US equities.
 
-This repository asks whether the event-tracking effect described in the Longbridge article
-["国会山股神？戴尔暴涨 38% 的背后，是基本面还是……"](https://longbridge.com/zh-CN/topics/41260998.md)
-can be tracked in a repeatable, point-in-time way.
+This repository asks whether public disclosure, official remarks, policy capital,
+procurement, and other political/public events can be tracked in a repeatable,
+point-in-time way.
 
 ## Repository Role
 
@@ -24,9 +24,8 @@ The initial research scope is:
 
 ## Current Status
 
-The first committed dataset is a seed extracted from the Longbridge topic above.
-It is intentionally small and should be treated as a hypothesis registry, not as
-verified investment evidence.
+The committed CSV files under `examples/` are synthetic schema fixtures only.
+They are not investment evidence and are not derived from any article.
 
 Tracked event families:
 
@@ -43,16 +42,16 @@ Build the seed tracker:
 
 ```bash
 python scripts/build_tracker.py \
-  --watchlist data/seed/article_41260998_watchlist.csv \
-  --events data/seed/article_41260998_events.csv \
-  --output data/output/article_41260998_tracker.csv
+  --watchlist examples/political_watchlist.example.csv \
+  --events examples/political_events.example.csv \
+  --output data/output/political_tracker.example.csv
 ```
 
 Run the synthetic event study:
 
 ```bash
 python scripts/run_event_study.py \
-  --events data/seed/article_41260998_events.csv \
+  --events examples/political_events.example.csv \
   --prices examples/price_history.example.csv \
   --windows 1,2 \
   --output data/output/event_study.example.csv
@@ -75,7 +74,7 @@ event_id,event_date,symbol,event_type,direction,confidence,source_url,notes
 Watchlist input schema:
 
 ```text
-symbol,name,bucket,article_status,thesis,source_url
+symbol,name,bucket,research_status,thesis,source_url
 ```
 
 Price input schema:
@@ -106,7 +105,7 @@ This repo does not own:
 
 ## Next Work
 
-1. Replace article-derived seed events with official-source extraction.
+1. Add official-source extraction.
 2. Add a source adapter for OGE disclosure PDFs or normalized public datasets.
 3. Add public-remarks ingestion from White House pages and social-media exports.
 4. Backfill enough point-in-time events to evaluate hit rate, lag, and false

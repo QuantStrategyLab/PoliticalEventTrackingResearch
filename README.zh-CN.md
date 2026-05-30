@@ -4,8 +4,6 @@
 
 QuantStrategyLab 的确定性研究仓库，用来验证“公开持仓/交易披露 + 公开讲话/社媒点名 + 政策资金事件”能否形成可追踪的美股事件线索。
 
-首个样本来自长桥文章：[《国会山股神？戴尔暴涨 38% 的背后，是基本面还是……》](https://longbridge.com/zh-CN/topics/41260998.md)。
-
 ## 仓库定位
 
 这是研究证据仓库，不是 AI 仓库，也不是交易执行仓库。
@@ -28,7 +26,7 @@ QuantStrategyLab 的确定性研究仓库，用来验证“公开持仓/交易�
 
 ## 当前状态
 
-当前只提交了一份文章种子样本。它用于定义研究问题和跑通工具链，不应视为已经验证过的投资证据。
+当前提交的 `examples/` 数据是完全合成的 schema fixture，只用于跑通工具链，不是投资证据，也不是从任何文章抽取出来的样本。
 
 事件类型：
 
@@ -39,20 +37,20 @@ QuantStrategyLab 的确定性研究仓库，用来验证“公开持仓/交易�
 
 ## 本地验证
 
-生成文章种子追踪表：
+生成合成示例追踪表：
 
 ```bash
 python scripts/build_tracker.py \
-  --watchlist data/seed/article_41260998_watchlist.csv \
-  --events data/seed/article_41260998_events.csv \
-  --output data/output/article_41260998_tracker.csv
+  --watchlist examples/political_watchlist.example.csv \
+  --events examples/political_events.example.csv \
+  --output data/output/political_tracker.example.csv
 ```
 
 用合成价格样本跑事件研究：
 
 ```bash
 python scripts/run_event_study.py \
-  --events data/seed/article_41260998_events.csv \
+  --events examples/political_events.example.csv \
   --prices examples/price_history.example.csv \
   --windows 1,2 \
   --output data/output/event_study.example.csv
@@ -66,10 +64,10 @@ python -m pytest -q
 
 ## 研究判断
 
-文章里的“追踪效果”可以拆成三个可验证问题：
+这类“追踪效果”可以拆成三个可验证问题：
 
 1. **能不能第一时间知道谁进入观察池**：需要结构化公开披露和政策/持仓来源。
 2. **能不能捕捉公开点名**：需要按时间记录白宫讲话、采访、社媒和新闻文本。
-3. **点名后是否有可交易的统计优势**：需要事件研究和样本外验证，不能只看 DELL、MU 等少数案例。
+3. **点名后是否有可交易的统计优势**：需要事件研究和样本外验证，不能只看少数轶事案例。
 
 本仓库先解决前两步的数据结构和复盘框架；第三步需要更多点位和真实行情输入。后续如果需要 LLM 处理长文本，只能作为可替换的抽取工具，不能把模型判断结果写成核心信号合同。

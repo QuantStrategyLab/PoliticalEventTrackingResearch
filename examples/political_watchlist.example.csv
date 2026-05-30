@@ -1,0 +1,6 @@
+symbol,name,bucket,research_status,thesis,source_url
+EVT1,Example Catalyst One,named_mentioned,triggered,"Synthetic disclosure plus mention candidate used only to validate tracker output.",https://example.invalid/watchlist/evt1
+EVT2,Example Policy Two,policy_capital,triggered,"Synthetic policy capital candidate used only to validate tracker output.",https://example.invalid/watchlist/evt2
+EVT3,Example Quality Three,disclosed_holding,watchlist,"Synthetic quality review candidate used only to validate tracker output.",https://example.invalid/watchlist/evt3
+EVT4,Example Monitor Four,drone_policy_watchlist,watchlist,"Synthetic watch-only candidate used only to validate tracker output.",https://example.invalid/watchlist/evt4
+

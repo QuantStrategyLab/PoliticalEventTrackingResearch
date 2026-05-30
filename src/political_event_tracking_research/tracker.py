@@ -36,7 +36,7 @@ class WatchlistItem:
     symbol: str
     name: str
     bucket: str
-    article_status: str
+    research_status: str
     thesis: str
     source_url: str
 
@@ -49,7 +49,7 @@ def load_watchlist(path: str | Path) -> list[WatchlistItem]:
                 symbol=row["symbol"].upper(),
                 name=row.get("name", ""),
                 bucket=row.get("bucket", ""),
-                article_status=row.get("article_status", ""),
+                research_status=row.get("research_status") or row.get("article_status", ""),
                 thesis=row.get("thesis", ""),
                 source_url=row.get("source_url", ""),
             )
@@ -81,7 +81,7 @@ def trigger_status(item: WatchlistItem, events: list[Event]) -> str:
         return "mentioned"
     if "disclosure_buy" in event_types:
         return "disclosed"
-    return item.article_status or "watchlist"
+    return item.research_status or "watchlist"
 
 
 def build_tracker_rows(items: list[WatchlistItem], events: list[Event]) -> list[dict[str, object]]:
@@ -152,4 +152,3 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
-

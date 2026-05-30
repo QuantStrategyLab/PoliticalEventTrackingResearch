@@ -4,9 +4,11 @@ This file records source families for future ingestion. A source listed here is
 not automatically trusted; every event still carries its own `source_url` and
 `confidence`.
 
-## Seed Source
+## Inspiration Sources
 
-- Longbridge topic 41260998:
+- The Longbridge topic below inspired the initial research question. It is not
+  committed as an event seed and should not be treated as evidence without
+  official-source verification:
   <https://longbridge.com/zh-CN/topics/41260998.md>
 
 ## Candidate Official Sources
@@ -28,4 +30,3 @@ not automatically trusted; every event still carries its own `source_url` and
 - `medium`: reputable secondary source with enough details to locate official
   source later.
 - `low`: article, community post, or manually transcribed lead pending review.
-
