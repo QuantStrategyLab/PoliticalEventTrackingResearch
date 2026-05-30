@@ -13,6 +13,11 @@ on:
         required: false
         default: "examples/symbol_aliases.example.csv"
         type: string
+      watchlist_path:
+        description: "Watchlist CSV path."
+        required: false
+        default: "examples/political_watchlist.example.csv"
+        type: string
       max_items_per_feed:
         description: "Maximum feed items per configured RSS/Atom feed."
         required: false
@@ -35,6 +40,7 @@ jobs:
         env:
           FEEDS_PATH: ${{ github.event.inputs.feeds_path || 'examples/rss_feeds.example.csv' }}
           ALIASES_PATH: ${{ github.event.inputs.aliases_path || 'examples/symbol_aliases.example.csv' }}
+          WATCHLIST_PATH: ${{ github.event.inputs.watchlist_path || 'examples/political_watchlist.example.csv' }}
           MAX_ITEMS_PER_FEED: ${{ github.event.inputs.max_items_per_feed || '25' }}
         run: |
           set -euo pipefail
@@ -48,7 +54,7 @@ jobs:
             --aliases "${ALIASES_PATH}" \
             --output data/output/rss_source_pipeline/source_events.csv
           python scripts/build_tracker.py \
-            --watchlist examples/political_watchlist.example.csv \
+            --watchlist "${WATCHLIST_PATH}" \
             --events data/output/rss_source_pipeline/source_events.csv \
             --output data/output/rss_source_pipeline/source_tracker.csv
       - name: Upload RSS source artifact
@@ -57,4 +63,3 @@ jobs:
           name: rss-source-pipeline
           path: data/output/rss_source_pipeline/
           if-no-files-found: error
-

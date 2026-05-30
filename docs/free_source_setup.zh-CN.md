@@ -25,6 +25,7 @@ gh workflow run "RSS Source Pipeline" \
   --repo QuantStrategyLab/PoliticalEventTrackingResearch \
   -f feeds_path=config/free_rss_feeds.csv \
   -f aliases_path=config/core_us_equity_aliases.csv \
+  -f watchlist_path=data/live/political_watchlist.csv \
   -f max_items_per_feed=25
 ```
 
@@ -47,6 +48,7 @@ gh workflow run "X Recent Search Pipeline" \
   --repo QuantStrategyLab/PoliticalEventTrackingResearch \
   -f queries_path=config/free_x_queries.csv \
   -f aliases_path=config/core_us_equity_aliases.csv \
+  -f watchlist_path=data/live/political_watchlist.csv \
   -f max_results=10
 ```
 

@@ -13,6 +13,11 @@ on:
         required: false
         default: "examples/symbol_aliases.example.csv"
         type: string
+      watchlist_path:
+        description: "Watchlist CSV path."
+        required: false
+        default: "examples/political_watchlist.example.csv"
+        type: string
   schedule:
     - cron: "0 12 * * 6"
 
@@ -30,6 +35,7 @@ jobs:
         env:
           RAW_ITEMS_PATH: ${{ github.event.inputs.raw_items_path || 'examples/source_items.example.csv' }}
           ALIASES_PATH: ${{ github.event.inputs.aliases_path || 'examples/symbol_aliases.example.csv' }}
+          WATCHLIST_PATH: ${{ github.event.inputs.watchlist_path || 'examples/political_watchlist.example.csv' }}
         run: |
           set -euo pipefail
           mkdir -p data/output/source_event_pipeline
@@ -38,7 +44,7 @@ jobs:
             --aliases "${ALIASES_PATH}" \
             --output data/output/source_event_pipeline/source_events.csv
           python scripts/build_tracker.py \
-            --watchlist examples/political_watchlist.example.csv \
+            --watchlist "${WATCHLIST_PATH}" \
             --events data/output/source_event_pipeline/source_events.csv \
             --output data/output/source_event_pipeline/source_tracker.csv
       - name: Upload source event artifact
@@ -47,4 +53,3 @@ jobs:
           name: source-event-pipeline
           path: data/output/source_event_pipeline/
           if-no-files-found: error
-

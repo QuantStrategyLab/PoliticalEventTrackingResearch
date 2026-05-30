@@ -13,6 +13,11 @@ on:
         required: false
         default: "examples/symbol_aliases.example.csv"
         type: string
+      watchlist_path:
+        description: "Watchlist CSV path."
+        required: false
+        default: "examples/political_watchlist.example.csv"
+        type: string
       max_results:
         description: "X API max_results per query."
         required: false
@@ -34,6 +39,7 @@ jobs:
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
           QUERIES_PATH: ${{ github.event.inputs.queries_path || 'examples/x_queries.example.csv' }}
           ALIASES_PATH: ${{ github.event.inputs.aliases_path || 'examples/symbol_aliases.example.csv' }}
+          WATCHLIST_PATH: ${{ github.event.inputs.watchlist_path || 'examples/political_watchlist.example.csv' }}
           MAX_RESULTS: ${{ github.event.inputs.max_results || '10' }}
         run: |
           set -euo pipefail
@@ -51,10 +57,13 @@ jobs:
             --raw-items data/output/x_recent_search_pipeline/source_items.csv \
             --aliases "${ALIASES_PATH}" \
             --output data/output/x_recent_search_pipeline/source_events.csv
+          python scripts/build_tracker.py \
+            --watchlist "${WATCHLIST_PATH}" \
+            --events data/output/x_recent_search_pipeline/source_events.csv \
+            --output data/output/x_recent_search_pipeline/source_tracker.csv
       - name: Upload X source artifact
         uses: actions/upload-artifact@v7
         with:
           name: x-recent-search-pipeline
           path: data/output/x_recent_search_pipeline/
           if-no-files-found: error
-
