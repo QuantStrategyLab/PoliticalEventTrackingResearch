@@ -1,0 +1,19 @@
+symbol,name,bucket,article_status,thesis,source_url
+DELL,Dell Technologies,named_mentioned,triggered,"AI servers, data center capex, article timeline has disclosure buy plus public mention.",https://longbridge.com/zh-CN/topics/41260998.md
+MU,Micron Technology,named_mentioned,triggered,"HBM/DRAM AI memory supplier; article timeline has buy then public mentions.",https://longbridge.com/zh-CN/topics/41260998.md
+AAPL,Apple,named_mentioned,triggered,"Consumer electronics ecosystem; article cites same-day buy and praise of Apple/Cook.",https://longbridge.com/zh-CN/topics/41260998.md
+TMO,Thermo Fisher Scientific,named_mentioned,triggered,"Life-science tools; article cites same-day buy and factory visit.",https://longbridge.com/zh-CN/topics/41260998.md
+INTC,Intel,policy_capital,triggered,"Semiconductor manufacturing and policy capital support.",https://longbridge.com/zh-CN/topics/41260998.md
+NVDA,NVIDIA,named_mentioned,watchlist,"AI GPU and CUDA ecosystem; article lists as already named.",https://longbridge.com/zh-CN/topics/41260998.md
+AVGO,Broadcom,named_mentioned,watchlist,"Custom AI chips and networking silicon; article lists as already named.",https://longbridge.com/zh-CN/topics/41260998.md
+ORCL,Oracle,disclosed_holding,watchlist,"Database/cloud; article says it is among disclosed holdings and related to AI infrastructure.",https://longbridge.com/zh-CN/topics/41260998.md
+GOOGL,Alphabet,disclosed_holding,watchlist,"Search/cloud/TPU path; article lists as disclosed holding.",https://longbridge.com/zh-CN/topics/41260998.md
+TXN,Texas Instruments,disclosed_holding,watchlist,"Analog semiconductor leader; article lists as disclosed holding.",https://longbridge.com/zh-CN/topics/41260998.md
+ADBE,Adobe,disclosed_holding,watchlist,"Creative/document software with AI transition; article lists as disclosed holding.",https://longbridge.com/zh-CN/topics/41260998.md
+NOW,ServiceNow,disclosed_holding,watchlist,"Enterprise workflow SaaS; article lists as disclosed holding.",https://longbridge.com/zh-CN/topics/41260998.md
+ACHR,Archer Aviation,drone_policy_watchlist,watchlist,"eVTOL and air mobility; article lists as Trump-government drone related.",https://longbridge.com/zh-CN/topics/41260998.md
+JOBY,Joby Aviation,drone_policy_watchlist,watchlist,"eVTOL and air taxi commercialization; article lists as Trump-government drone related.",https://longbridge.com/zh-CN/topics/41260998.md
+RCAT,Red Cat,drone_policy_watchlist,watchlist,"Recon drone supplier; article lists as drone policy related.",https://longbridge.com/zh-CN/topics/41260998.md
+UMAC,Unusual Machines,drone_policy_watchlist,watchlist,"Domestic drone component supplier; article lists as drone policy related.",https://longbridge.com/zh-CN/topics/41260998.md
+ONDS,Ondas,drone_policy_watchlist,watchlist,"Drone systems and industrial wireless networks; article lists as drone policy related.",https://longbridge.com/zh-CN/topics/41260998.md
+
