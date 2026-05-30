@@ -8,6 +8,7 @@ Longbridge 可以作为“社区高手观点/高收益用户观点”的研究�
 
 - 优先用 topic search 按主题关键词搜索，再拉详情，从正文里抽股票。
 - 按股票代码拉社区 topics 只适合补充验证，不适合作为“大佬先说了什么股票”的主入口。
+- 实验性方式：对公开主页调用 Longbridge Web 前端的 profile activities 接口，像订阅作者一样拉取公开动态。
 
 我没有在官方文档里看到“我关注的人动态流” endpoint。因此如果要只追踪你关注的大佬，需要维护一个本地作者白名单：
 
@@ -43,6 +44,24 @@ python scripts/fetch_longbridge_cli_topics.py \
   --author-allowlist data/live/longbridge_followed_authors.csv \
   --min-likes 5
 ```
+
+实验性按作者主页拉取公开动态：
+
+```bash
+python scripts/fetch_longbridge_profile_activities.py \
+  --author-allowlist data/live/longbridge_followed_authors.csv \
+  --pages 1 \
+  --raw-output data/output/longbridge_profile_activities.raw.json \
+  --source-items-output data/output/longbridge_profile_activity_source_items.csv
+```
+
+这个路径复现的是 Longbridge Web 前端接口：
+
+```text
+https://m.lbkrs.com/api/forward/v2/social/profiles/{member_id}/activities
+```
+
+它不是官方 OpenAPI。实测结果是：公开发帖账号可以返回 activities；部分主页即使能打开 profile，未登录请求也可能返回 `activities=[]`、`total_count=0`。因此该路径只作为 experimental source，不能绕过登录态或抓取私人关注流。
 
 4. 抽取个股 mention：
 
