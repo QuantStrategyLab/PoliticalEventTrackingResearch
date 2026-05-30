@@ -31,6 +31,17 @@ not automatically trusted; every event still carries its own `source_url` and
 - X posts from the relevant verified/person-owned account:
   <https://x.com/>
 
+## Candidate Community Research Sources
+
+- Longbridge community topics from official OpenAPI/CLI topic list/detail
+  exports:
+  <https://open.longbridge.com/docs/content/topics>
+  <https://open.longbridge.com/docs/content/topic-detail>
+
+Use Longbridge community posts as research leads, not official confirmations.
+If the operator follows high-quality authors, keep a local author allowlist
+(`member_id`, `name`) and filter imported topics through it.
+
 ## Candidate Lead Sources
 
 - Reputable financial media can be used as low-confidence leads only. Leads
@@ -42,5 +53,5 @@ not automatically trusted; every event still carries its own `source_url` and
 - `high`: official source or direct filing with stable URL.
 - `medium`: primary social source with a stable, verifiable URL, or issuer
   release.
-- `low`: financial-media article or manually transcribed lead pending primary
-  source review.
+- `low`: financial-media article, Longbridge community lead, or manually
+  transcribed lead pending primary source review.

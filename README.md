@@ -74,7 +74,9 @@ python scripts/fetch_rss_sources.py \
   --max-items-per-feed 10
 ```
 
-See `docs/source_ingestion_options.md` for RSS/API/scraping tradeoffs.
+See `docs/source_ingestion_options.md` for RSS/API/scraping tradeoffs. See
+`docs/longbridge_community_ingestion.zh-CN.md` for Longbridge community lead
+ingestion.
 
 `.github/workflows/rss_source_pipeline.yml` fetches configured RSS/Atom feeds,
 extracts mentions, builds a tracker, and uploads the results as an artifact.
@@ -93,6 +95,36 @@ Convert a Truth Social JSON export into `source_items.csv`:
 python scripts/import_truthsocial_export.py \
   --input examples/truthsocial_export.example.json \
   --output data/output/truthsocial_source_items.example.csv
+```
+
+Optionally try the public Truth Social endpoint manually:
+
+```bash
+python scripts/fetch_truthsocial_public.py \
+  --username realDonaldTrump \
+  --output data/output/truthsocial_source_items.csv \
+  --limit 20
+```
+
+Convert Longbridge community topic JSON into low-confidence research leads:
+
+```bash
+python scripts/import_longbridge_topics.py \
+  --input examples/longbridge_topics.example.json \
+  --author-allowlist examples/longbridge_followed_authors.example.csv \
+  --output data/output/longbridge_source_items.example.csv
+```
+
+If the official Longbridge CLI is installed and authenticated, fetch configured
+symbols directly:
+
+```bash
+python scripts/fetch_longbridge_cli_topics.py \
+  --symbols config/longbridge_topic_symbols.csv \
+  --include-details \
+  --raw-output data/output/longbridge_topics.raw.json \
+  --source-items-output data/output/longbridge_source_items.csv \
+  --author-allowlist data/live/longbridge_followed_authors.csv
 ```
 
 `.github/workflows/source_event_pipeline.yml` runs the same extraction and

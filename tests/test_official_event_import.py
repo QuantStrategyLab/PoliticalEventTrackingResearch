@@ -61,3 +61,20 @@ def test_verified_social_records_reject_untrusted_hosts() -> None:
 
     with pytest.raises(ValueError, match="verified social source URLs"):
         normalize_records([record])
+
+
+def test_community_lead_records_are_low_confidence() -> None:
+    record = OfficialRecord(
+        record_id="longbridge-topic",
+        record_date="2026-02-02",
+        symbol="MU",
+        source_type="community_research_lead",
+        event_type="public_mention",
+        direction="bullish",
+        source_url="https://longbridge.cn/topics/lb-demo-mu",
+        summary="Community research lead.",
+    )
+
+    rows = normalize_records([record])
+
+    assert rows[0]["confidence"] == "low"

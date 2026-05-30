@@ -23,6 +23,7 @@ GOVERNMENT_SOURCE_TYPES = frozenset(
 ISSUER_SOURCE_TYPES = frozenset({"issuer_release"})
 PRIMARY_SOCIAL_SOURCE_TYPES = frozenset({"verified_social_post"})
 MEDIA_LEAD_SOURCE_TYPES = frozenset({"financial_media"})
+COMMUNITY_LEAD_SOURCE_TYPES = frozenset({"community_research_lead"})
 
 PRIMARY_SOCIAL_HOSTS = frozenset(
     {
@@ -32,6 +33,15 @@ PRIMARY_SOCIAL_HOSTS = frozenset(
         "www.x.com",
         "twitter.com",
         "www.twitter.com",
+    }
+)
+
+COMMUNITY_LEAD_HOSTS = frozenset(
+    {
+        "longbridge.com",
+        "www.longbridge.com",
+        "longbridge.cn",
+        "www.longbridge.cn",
     }
 )
 
@@ -80,6 +90,11 @@ def is_primary_social_url(url: str) -> bool:
     return is_https_url(url) and parsed.netloc.lower() in PRIMARY_SOCIAL_HOSTS
 
 
+def is_community_lead_url(url: str) -> bool:
+    parsed = urlparse(url)
+    return is_https_url(url) and parsed.netloc.lower() in COMMUNITY_LEAD_HOSTS
+
+
 def load_official_records(path: str | Path) -> list[OfficialRecord]:
     records: list[OfficialRecord] = []
     for row in read_csv_rows(path):
@@ -118,6 +133,9 @@ def validate_record(record: OfficialRecord) -> None:
     elif record.source_type in MEDIA_LEAD_SOURCE_TYPES:
         if not is_https_url(record.source_url):
             raise ValueError(f"{record.record_id}: financial media source URLs must be https URLs")
+    elif record.source_type in COMMUNITY_LEAD_SOURCE_TYPES:
+        if not is_community_lead_url(record.source_url):
+            raise ValueError(f"{record.record_id}: community lead source URLs must be Longbridge https URLs")
     else:
         raise ValueError(f"{record.record_id}: unsupported source_type {record.source_type!r}")
 
@@ -127,7 +145,7 @@ def confidence_for_source(record: OfficialRecord) -> str:
         return "high"
     if record.source_type in PRIMARY_SOCIAL_SOURCE_TYPES:
         return "medium"
-    if record.source_type in MEDIA_LEAD_SOURCE_TYPES:
+    if record.source_type in MEDIA_LEAD_SOURCE_TYPES or record.source_type in COMMUNITY_LEAD_SOURCE_TYPES:
         return "low"
     return "medium"
 

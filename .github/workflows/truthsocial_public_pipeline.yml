@@ -1,0 +1,63 @@
+name: Truth Social Public Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      username:
+        description: "Truth Social username."
+        required: false
+        default: "realDonaldTrump"
+        type: string
+      aliases_path:
+        description: "Symbol alias CSV path."
+        required: false
+        default: "config/core_us_equity_aliases.csv"
+        type: string
+      watchlist_path:
+        description: "Watchlist CSV path."
+        required: false
+        default: "data/live/political_watchlist.csv"
+        type: string
+      limit:
+        description: "Maximum posts to fetch."
+        required: false
+        default: "20"
+        type: string
+
+jobs:
+  build-truthsocial-source-events:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Try public Truth Social fetch and extract mentions
+        env:
+          USERNAME: ${{ github.event.inputs.username || 'realDonaldTrump' }}
+          ALIASES_PATH: ${{ github.event.inputs.aliases_path || 'config/core_us_equity_aliases.csv' }}
+          WATCHLIST_PATH: ${{ github.event.inputs.watchlist_path || 'data/live/political_watchlist.csv' }}
+          LIMIT: ${{ github.event.inputs.limit || '20' }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/output/truthsocial_public_pipeline
+          python scripts/fetch_truthsocial_public.py \
+            --username "${USERNAME}" \
+            --limit "${LIMIT}" \
+            --output data/output/truthsocial_public_pipeline/source_items.csv
+          python scripts/extract_source_mentions.py \
+            --raw-items data/output/truthsocial_public_pipeline/source_items.csv \
+            --aliases "${ALIASES_PATH}" \
+            --output data/output/truthsocial_public_pipeline/source_events.csv
+          python scripts/build_tracker.py \
+            --watchlist "${WATCHLIST_PATH}" \
+            --events data/output/truthsocial_public_pipeline/source_events.csv \
+            --output data/output/truthsocial_public_pipeline/source_tracker.csv
+      - name: Upload Truth Social source artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: truthsocial-public-pipeline
+          path: data/output/truthsocial_public_pipeline/
+          if-no-files-found: error

@@ -1,3 +1,3 @@
 query_id,query,source_type,author_label
-trump-ai-defense-energy,from:realDonaldTrump (NVIDIA OR NVDA OR Tesla OR TSLA OR Intel OR INTC OR Boeing OR Lockheed OR nuclear OR energy OR chip OR tariff OR defense) -is:retweet,verified_social_post,Donald Trump
+trump-ai-defense-energy,from:realDonaldTrump (NVIDIA OR NVDA OR Tesla OR TSLA OR Intel OR INTC OR Micron OR MU OR Dell OR DELL OR Boeing OR Lockheed OR nuclear OR energy OR chip OR semiconductor OR tariff OR defense OR AI) -is:retweet,verified_social_post,Donald Trump
 official-sec-company,from:SECGov (NVIDIA OR Tesla OR Intel OR Microsoft OR Amazon OR Coinbase OR crypto OR AI) -is:retweet,verified_social_post,SEC

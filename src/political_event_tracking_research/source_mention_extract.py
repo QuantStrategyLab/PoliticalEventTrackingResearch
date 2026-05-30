@@ -78,7 +78,7 @@ def match_symbols(text: str, aliases: list[MentionAlias]) -> list[str]:
 def infer_event_type(item: RawSourceItem) -> str:
     source_type = item.source_type
     text = item.text.lower()
-    if source_type == "financial_media":
+    if source_type in {"financial_media", "community_research_lead"}:
         return "public_mention"
     if "contract" in text or "procurement" in text or "award" in text:
         return "procurement"
@@ -89,8 +89,19 @@ def infer_event_type(item: RawSourceItem) -> str:
 
 def infer_direction(text: str) -> str:
     lowered = text.lower()
-    negative_terms = ("avoid", "ban", "sanction", "investigation", "risk", "delay", "block")
-    positive_terms = ("buy", "great", "partner", "award", "funding", "capital", "support", "contract")
+    negative_terms = ("avoid", "ban", "sanction", "investigation", "risk", "delay", "block", "bearish", "sell")
+    positive_terms = (
+        "buy",
+        "bullish",
+        "great",
+        "partner",
+        "award",
+        "funding",
+        "capital",
+        "support",
+        "contract",
+        "upside",
+    )
     if any(term in lowered for term in negative_terms):
         return "bearish"
     if any(term in lowered for term in positive_terms):

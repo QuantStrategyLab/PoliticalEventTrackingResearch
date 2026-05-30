@@ -73,6 +73,7 @@ python scripts/fetch_rss_sources.py \
 ```
 
 RSS、API 和抓取方案的取舍见 `docs/source_ingestion_options.md`。
+Longbridge 社区高手内容接入见 `docs/longbridge_community_ingestion.zh-CN.md`。
 
 `.github/workflows/rss_source_pipeline.yml` 会拉取配置的 RSS/Atom，抽取 mention，
 生成 tracker，并上传为 artifact。
@@ -91,6 +92,35 @@ Truth Social 当前按手工/合规导出的 JSON 接入：
 python scripts/import_truthsocial_export.py \
   --input examples/truthsocial_export.example.json \
   --output data/output/truthsocial_source_items.example.csv
+```
+
+也可以手动尝试公开 Truth Social endpoint；如果平台返回 Cloudflare/HTML，应回退到上面的导出导入路径：
+
+```bash
+python scripts/fetch_truthsocial_public.py \
+  --username realDonaldTrump \
+  --output data/output/truthsocial_source_items.csv \
+  --limit 20
+```
+
+Longbridge 社区内容按“社区研究线索”接入，先导出 topics/detail JSON，再归一化为 `source_items.csv`：
+
+```bash
+python scripts/import_longbridge_topics.py \
+  --input examples/longbridge_topics.example.json \
+  --author-allowlist examples/longbridge_followed_authors.example.csv \
+  --output data/output/longbridge_source_items.example.csv
+```
+
+如果本机已安装并登录 Longbridge CLI，可以直接按配置里的标的拉取：
+
+```bash
+python scripts/fetch_longbridge_cli_topics.py \
+  --symbols config/longbridge_topic_symbols.csv \
+  --include-details \
+  --raw-output data/output/longbridge_topics.raw.json \
+  --source-items-output data/output/longbridge_source_items.csv \
+  --author-allowlist data/live/longbridge_followed_authors.csv
 ```
 
 `.github/workflows/source_event_pipeline.yml` 会生成 `source_events.csv` 和

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from political_event_tracking_research.source_mention_extract import extract_source_records, match_symbols
+from political_event_tracking_research.source_mention_extract import extract_source_records, infer_direction, match_symbols
 from political_event_tracking_research.source_mention_extract import MentionAlias
 
 
@@ -26,6 +26,11 @@ def test_single_letter_ticker_requires_cash_tag_or_name_alias() -> None:
     assert match_symbols("F-150 policy is mentioned.", aliases) == ["F"]
 
 
+def test_infer_direction_handles_common_investor_language() -> None:
+    assert infer_direction("Bullish on DELL upside from AI servers.") == "bullish"
+    assert infer_direction("Bearish risk and sell pressure.") == "bearish"
+
+
 def test_extract_source_records_outputs_confidence_by_source_type(tmp_path: Path) -> None:
     output = tmp_path / "source_events.csv"
 
@@ -41,3 +46,21 @@ def test_extract_source_records_outputs_confidence_by_source_type(tmp_path: Path
     assert by_symbol["EVT3"]["confidence"] == "low"
     assert by_symbol["EVT4"]["event_type"] == "procurement"
     assert output.exists()
+
+
+def test_community_research_leads_stay_public_mentions(tmp_path: Path) -> None:
+    raw_items = tmp_path / "source_items.csv"
+    raw_items.write_text(
+        "item_id,published_at,source_type,source_url,author,text\n"
+        "lb-1,2026-02-02T02:40:00Z,community_research_lead,https://longbridge.cn/topics/1,"
+        "Longbridge:Expert,Micron contract funding support looks bullish.\n",
+        encoding="utf-8",
+    )
+    aliases = tmp_path / "aliases.csv"
+    aliases.write_text("symbol,name,aliases\nMU,Micron,Micron|MU\n", encoding="utf-8")
+    output = tmp_path / "source_events.csv"
+
+    rows = extract_source_records(raw_items, aliases, output)
+
+    assert rows[0]["event_type"] == "public_mention"
+    assert rows[0]["confidence"] == "low"

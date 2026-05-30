@@ -54,9 +54,9 @@ def normalize_created_at(value: Any) -> str:
     return text
 
 
-def import_truthsocial_export(input_path: str | Path, output_path: str | Path) -> list[dict[str, str]]:
+def normalize_posts(posts: list[dict[str, Any]]) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
-    for post in load_export(input_path):
+    for post in posts:
         post_id = str(post.get("id") or post.get("post_id") or len(rows))
         rows.append(
             {
@@ -69,6 +69,11 @@ def import_truthsocial_export(input_path: str | Path, output_path: str | Path) -
             }
         )
     rows.sort(key=lambda row: (row["published_at"], row["item_id"]))
+    return rows
+
+
+def import_truthsocial_export(input_path: str | Path, output_path: str | Path) -> list[dict[str, str]]:
+    rows = normalize_posts(load_export(input_path))
     write_csv_rows(output_path, ["item_id", "published_at", "source_type", "source_url", "author", "text"], rows)
     return rows
 
@@ -87,4 +92,3 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
-

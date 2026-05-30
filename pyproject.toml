@@ -23,6 +23,9 @@ petr-extract-source-mentions = "political_event_tracking_research.source_mention
 petr-fetch-rss-sources = "political_event_tracking_research.rss_source_fetch:main"
 petr-fetch-x-recent-search = "political_event_tracking_research.x_recent_search:main"
 petr-import-truthsocial-export = "political_event_tracking_research.truthsocial_export_import:main"
+petr-import-longbridge-topics = "political_event_tracking_research.longbridge_topic_import:main"
+petr-fetch-longbridge-cli-topics = "political_event_tracking_research.longbridge_cli_fetch:main"
+petr-fetch-truthsocial-public = "political_event_tracking_research.truthsocial_public_fetch:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

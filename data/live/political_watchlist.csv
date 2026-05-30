@@ -7,6 +7,7 @@ BA,Boeing,policy_capital,watchlist,"Aerospace, defense procurement, export, and 
 COIN,Coinbase,named_mentioned,watchlist,"Crypto policy, SEC enforcement, and market-structure watch.",https://investor.coinbase.com/
 CRWD,CrowdStrike,policy_capital,watchlist,"Cybersecurity and government security-spend watch.",https://ir.crowdstrike.com/
 CVX,Chevron,policy_capital,watchlist,"Energy policy, permitting, oil/gas, and geopolitical-risk watch.",https://chevroncorp.gcs-web.com/
+DELL,Dell Technologies,named_mentioned,watchlist,"AI server, federal procurement, data-center demand, and domestic technology-policy watch.",https://investors.delltechnologies.com/
 ENPH,Enphase Energy,policy_capital,watchlist,"Solar, tariff, tax-credit, and grid policy watch.",https://investor.enphase.com/
 F,Ford,policy_capital,watchlist,"EV subsidy, tariff, labor, and industrial-policy watch.",https://shareholder.ford.com/
 GE,GE Aerospace,policy_capital,watchlist,"Aerospace procurement and export-control watch.",https://www.geaerospace.com/investor-relations
