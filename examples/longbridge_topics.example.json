@@ -1,0 +1,50 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "items": [
+      {
+        "id": "lb-demo-mu",
+        "title": "AI memory cycle is improving",
+        "description": "Watching Micron $MU.US as HBM demand stays strong.",
+        "url": "https://longbridge.cn/topics/lb-demo-mu",
+        "published_at": "1770000000",
+        "likes_count": 28,
+        "comments_count": 5,
+        "shares_count": 3,
+        "author": {
+          "member_id": "expert-1001",
+          "name": "Example Longbridge Expert"
+        }
+      },
+      {
+        "id": "lb-demo-dell",
+        "title": "AI server backlog check",
+        "description": "Dell and Super Micro are still useful AI server demand trackers.",
+        "url": "https://longbridge.cn/topics/lb-demo-dell",
+        "published_at": "1770003600",
+        "likes_count": 16,
+        "comments_count": 2,
+        "shares_count": 1,
+        "author": {
+          "member_id": "expert-1001",
+          "name": "Example Longbridge Expert"
+        }
+      },
+      {
+        "id": "lb-demo-filtered",
+        "title": "Unfollowed author should be filtered",
+        "description": "This post mentions NVDA but should not pass the author allowlist.",
+        "url": "https://longbridge.cn/topics/lb-demo-filtered",
+        "published_at": "1770007200",
+        "likes_count": 99,
+        "comments_count": 9,
+        "shares_count": 9,
+        "author": {
+          "member_id": "other-9999",
+          "name": "Unfollowed Author"
+        }
+      }
+    ]
+  }
+}
