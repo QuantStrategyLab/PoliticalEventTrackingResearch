@@ -40,6 +40,17 @@
 5. 市场数据：Longbridge、Yahoo、Polygon、Nasdaq Data Link 或 QuantStrategyLab 已有价格输入。
 6. 其他社区文章：只做灵感，不直接作为事件证据入库。
 
+## 原始文本抽取入口
+
+`source_items` schema 用来接 Truth Social、X、白宫讲话、财经媒体等外部导出：
+
+```text
+item_id,published_at,source_type,source_url,author,text
+```
+
+抽取器只做确定性别名匹配和事件类型粗分类。它不调用 AI，也不认定投资结论。
+财经媒体来源会被导入为 `low` confidence lead。
+
 ## 初版成功标准
 
 初版不判断能否实盘，只判断是否具备研究可行性：

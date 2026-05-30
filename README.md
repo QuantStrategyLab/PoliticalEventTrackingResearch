@@ -55,6 +55,20 @@ python scripts/import_source_events.py \
   --output data/output/official_events.example.csv
 ```
 
+Extract mention events from raw Truth Social / X / official remarks /
+financial-media exports:
+
+```bash
+python scripts/extract_source_mentions.py \
+  --raw-items examples/source_items.example.csv \
+  --aliases examples/symbol_aliases.example.csv \
+  --output data/output/source_events.example.csv
+```
+
+`.github/workflows/source_event_pipeline.yml` runs the same extraction and
+uploads `source_events.csv` plus `source_tracker.csv` as a GitHub Actions
+artifact. It is intentionally artifact-only and does not publish recommendations.
+
 Run the synthetic event study:
 
 ```bash

@@ -54,6 +54,18 @@ python scripts/import_source_events.py \
   --output data/output/official_events.example.csv
 ```
 
+从 Truth Social / X / 官方讲话 / 财经媒体导出的原始文本 CSV 抽取 mention 事件：
+
+```bash
+python scripts/extract_source_mentions.py \
+  --raw-items examples/source_items.example.csv \
+  --aliases examples/symbol_aliases.example.csv \
+  --output data/output/source_events.example.csv
+```
+
+`.github/workflows/source_event_pipeline.yml` 会生成 `source_events.csv` 和
+`source_tracker.csv` 并上传为 GitHub Actions artifact。它只产出事件 artifact，不生成投资建议。
+
 用合成价格样本跑事件研究：
 
 ```bash

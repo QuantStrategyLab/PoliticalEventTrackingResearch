@@ -1,0 +1,50 @@
+name: Source Event Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      raw_items_path:
+        description: "Raw post/news CSV path."
+        required: false
+        default: "examples/source_items.example.csv"
+        type: string
+      aliases_path:
+        description: "Symbol alias CSV path."
+        required: false
+        default: "examples/symbol_aliases.example.csv"
+        type: string
+  schedule:
+    - cron: "0 12 * * 6"
+
+jobs:
+  build-source-events:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Extract source mentions
+        env:
+          RAW_ITEMS_PATH: ${{ github.event.inputs.raw_items_path || 'examples/source_items.example.csv' }}
+          ALIASES_PATH: ${{ github.event.inputs.aliases_path || 'examples/symbol_aliases.example.csv' }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/output/source_event_pipeline
+          python scripts/extract_source_mentions.py \
+            --raw-items "${RAW_ITEMS_PATH}" \
+            --aliases "${ALIASES_PATH}" \
+            --output data/output/source_event_pipeline/source_events.csv
+          python scripts/build_tracker.py \
+            --watchlist examples/political_watchlist.example.csv \
+            --events data/output/source_event_pipeline/source_events.csv \
+            --output data/output/source_event_pipeline/source_tracker.csv
+      - name: Upload source event artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: source-event-pipeline
+          path: data/output/source_event_pipeline/
+          if-no-files-found: error
+
