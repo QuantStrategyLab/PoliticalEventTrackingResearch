@@ -4,9 +4,9 @@ AMD,Advanced Micro Devices,AMD|Advanced Micro Devices|Radeon|EPYC|Instinct
 AMZN,Amazon,Amazon|AMZN|AWS|Amazon Web Services|Project Kuiper
 AVGO,Broadcom,Broadcom|AVGO|VMware
 BA,Boeing,Boeing|BA|737 MAX|Starliner
-COIN,Coinbase,Coinbase|COIN|crypto exchange
+COIN,Coinbase,Coinbase|COIN|crypto exchange|crypto assets|digital assets|crypto asset transactions
 CRWD,CrowdStrike,CrowdStrike|CRWD|Falcon cybersecurity
-CVX,Chevron,Chevron|CVX
+CVX,Chevron,Chevron|CVX|energy-related infrastructure|energy related infrastructure|large-scale energy|oil and gas
 DELL,Dell Technologies,Dell|Dell Technologies|DELL|AI server|PowerEdge
 ENPH,Enphase Energy,Enphase|ENPH|solar inverter
 F,Ford,Ford|F|F-150|Mustang Mach-E
@@ -19,12 +19,12 @@ JPM,JPMorgan Chase,JPMorgan|JPMorgan Chase|JPM|Jamie Dimon
 LMT,Lockheed Martin,Lockheed Martin|LMT|F-35|missile defense
 META,Meta Platforms,Meta|META|Facebook|Instagram|WhatsApp|Llama
 MSFT,Microsoft,Microsoft|MSFT|Azure|OpenAI|Copilot
-MSTR,Strategy,Strategy|MicroStrategy|MSTR|Michael Saylor|Bitcoin treasury
+MSTR,Strategy,Strategy|MicroStrategy|MSTR|Michael Saylor|Bitcoin treasury|crypto assets|Bitcoin
 MU,Micron Technology,Micron|MU|HBM|DRAM|NAND
-NEE,NextEra Energy,NextEra|NEE|renewable energy
+NEE,NextEra Energy,NextEra|NEE|renewable energy|grid infrastructure|energy-related infrastructure|energy related infrastructure|large-scale energy|renewable power
 NOC,Northrop Grumman,Northrop Grumman|NOC|B-21
 NVDA,NVIDIA,NVIDIA|Nvidia|NVDA|Blackwell|CUDA|GPU
-OKLO,Oklo,Oklo|OKLO|nuclear reactor|advanced nuclear
+OKLO,Oklo,Oklo|OKLO|nuclear reactor|advanced nuclear|nuclear energy
 ORCL,Oracle,Oracle|ORCL|cloud infrastructure
 PANW,Palo Alto Networks,Palo Alto Networks|PANW|cybersecurity
 PLTR,Palantir,Palantir|PLTR|Gotham|Foundry|AIP
@@ -32,10 +32,10 @@ QCOM,Qualcomm,Qualcomm|QCOM|Snapdragon
 RBLX,Roblox,Roblox|RBLX
 RTX,RTX,RTX|Raytheon|Pratt Whitney|missile
 SMCI,Super Micro Computer,Supermicro|Super Micro|SMCI|AI server
-SMR,NuScale Power,NuScale|SMR|small modular reactor
+SMR,NuScale Power,NuScale|SMR|small modular reactor|advanced nuclear|nuclear energy
 SOFI,SoFi Technologies,SoFi|SOFI
 TSLA,Tesla,Tesla|TSLA|Elon Musk|Cybertruck|FSD|Optimus|xAI
 TSM,Taiwan Semiconductor,TSMC|Taiwan Semiconductor|TSM|foundry
 UNH,UnitedHealth Group,UnitedHealth|UNH|UnitedHealthcare
-VRT,Vertiv,Vertiv|VRT|data center power|liquid cooling
-XOM,Exxon Mobil,Exxon|ExxonMobil|XOM
+VRT,Vertiv,Vertiv|VRT|data center power|liquid cooling|grid infrastructure|energy-related infrastructure|energy related infrastructure|large-scale energy|data center energy
+XOM,Exxon Mobil,Exxon|ExxonMobil|XOM|energy-related infrastructure|energy related infrastructure|large-scale energy|oil and gas

@@ -6,20 +6,31 @@ on:
       raw_items_path:
         description: "Raw post/news CSV path."
         required: false
-        default: "examples/source_items.example.csv"
+        default: "data/live/source_items.csv"
         type: string
       aliases_path:
         description: "Symbol alias CSV path."
         required: false
-        default: "examples/symbol_aliases.example.csv"
+        default: "config/core_us_equity_aliases.csv"
         type: string
       watchlist_path:
         description: "Watchlist CSV path."
         required: false
-        default: "examples/political_watchlist.example.csv"
+        default: "data/live/political_watchlist.csv"
         type: string
+      commit_outputs:
+        description: "Commit generated live CSV outputs back to data/live."
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
   schedule:
-    - cron: "0 12 * * 6"
+    - cron: "45 12 * * 6"
+
+permissions:
+  contents: write
 
 jobs:
   build-source-events:
@@ -33,9 +44,9 @@ jobs:
         run: python -m pip install -e .
       - name: Extract source mentions
         env:
-          RAW_ITEMS_PATH: ${{ github.event.inputs.raw_items_path || 'examples/source_items.example.csv' }}
-          ALIASES_PATH: ${{ github.event.inputs.aliases_path || 'examples/symbol_aliases.example.csv' }}
-          WATCHLIST_PATH: ${{ github.event.inputs.watchlist_path || 'examples/political_watchlist.example.csv' }}
+          RAW_ITEMS_PATH: ${{ github.event.inputs.raw_items_path || 'data/live/source_items.csv' }}
+          ALIASES_PATH: ${{ github.event.inputs.aliases_path || 'config/core_us_equity_aliases.csv' }}
+          WATCHLIST_PATH: ${{ github.event.inputs.watchlist_path || 'data/live/political_watchlist.csv' }}
         run: |
           set -euo pipefail
           mkdir -p data/output/source_event_pipeline
@@ -47,6 +58,28 @@ jobs:
             --watchlist "${WATCHLIST_PATH}" \
             --events data/output/source_event_pipeline/source_events.csv \
             --output data/output/source_event_pipeline/source_tracker.csv
+      - name: Publish live CSV outputs to repository
+        env:
+          COMMIT_OUTPUTS: ${{ github.event_name == 'schedule' && 'true' || github.event.inputs.commit_outputs || 'false' }}
+        run: |
+          set -euo pipefail
+          if [ "${COMMIT_OUTPUTS}" != "true" ]; then
+            echo "Live output commit disabled."
+            exit 0
+          fi
+          mkdir -p data/live
+          cp data/output/source_event_pipeline/source_events.csv data/live/source_events.csv
+          cp data/output/source_event_pipeline/source_events.csv data/live/political_events.csv
+          cp data/output/source_event_pipeline/source_tracker.csv data/live/source_tracker.csv
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/live/source_events.csv data/live/political_events.csv data/live/source_tracker.csv
+          if git diff --cached --quiet; then
+            echo "No live source output changes to commit."
+          else
+            git commit -m "Update live source events [skip ci]"
+            git push
+          fi
       - name: Upload source event artifact
         uses: actions/upload-artifact@v7
         with:

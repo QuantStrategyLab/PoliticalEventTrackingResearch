@@ -79,9 +79,18 @@ python scripts/fetch_rss_sources.py \
   --max-items-per-feed 10
 ```
 
-`.github/workflows/rss_source_pipeline.yml` 会拉取配置的 RSS/Atom，抽取 mention，生成 tracker，并上传为 artifact。
+`.github/workflows/rss_source_pipeline.yml` 会拉取配置的 RSS/Atom，抽取 mention，生成 tracker，并上传为 artifact。定时运行时还会把公开 live CSV 提交回 `data/live/`：
 
-`.github/workflows/source_event_pipeline.yml` 可处理人工提供的 `source_items.csv`，生成 `source_events.csv` 和 `source_tracker.csv` 并上传为 GitHub Actions artifact。它只产出事件 artifact，不生成投资建议。
+```text
+data/live/source_items.csv
+data/live/source_events.csv
+data/live/political_events.csv
+data/live/source_tracker.csv
+```
+
+其中 `data/live/political_events.csv` 是 `QuantAdvisorResearch` 读取的稳定事件输入。本仓库仍然只发布来源证据，不生成投资建议。
+
+`.github/workflows/source_event_pipeline.yml` 可处理人工提供的 `source_items.csv`。定时运行会在 RSS pipeline 之后使用 `data/live/source_items.csv`，刷新 `data/live/source_events.csv`、`data/live/political_events.csv` 和 `data/live/source_tracker.csv`。
 
 用合成价格样本跑事件研究：
 
@@ -98,6 +107,12 @@ python scripts/run_event_study.py \
 ```bash
 python -m pytest -q
 ```
+
+## Live pipeline 说明
+
+如果 RSS workflow 能拉到 `source_items.csv`，但 `source_events.csv` 为空，通常不是新闻没跑，而是确定性 alias 覆盖不足：很多政策文件只写“grid infrastructure”“crypto assets”这类主题词，不直接写公司名。后续补 alias 要保持克制、可审计，避免把所有宽泛政策新闻都误映射成公司事件。
+
+本机 macOS Python 也可能因为本地 CA 证书问题导致 HTTPS RSS 拉取失败；GitHub-hosted runner 使用正常 CA bundle。本地排查时可以先修 Python 证书，也可以直接从 GitHub Actions 下载 `source_items.csv` artifact 后验证抽取链路。
 
 ## 研究判断
 

@@ -26,6 +26,11 @@ def test_single_letter_ticker_requires_cash_tag_or_name_alias() -> None:
     assert match_symbols("F-150 policy is mentioned.", aliases) == ["F"]
 
 
+def test_match_symbols_normalizes_unicode_hyphen_aliases() -> None:
+    aliases = [MentionAlias(symbol="VRT", aliases=("VRT", "energy-related infrastructure"))]
+
+    assert match_symbols("Energy‑Related Infrastructure policy update", aliases) == ["VRT"]
+
 def test_infer_direction_handles_common_investor_language() -> None:
     assert infer_direction("Bullish on DELL upside from AI servers.") == "bullish"
     assert infer_direction("Bearish risk and sell pressure.") == "bearish"

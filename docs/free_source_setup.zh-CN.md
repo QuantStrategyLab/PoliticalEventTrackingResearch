@@ -5,7 +5,10 @@
 - `config/free_rss_feeds.csv`：无需账号的官方 RSS 源。
 - `config/core_us_equity_aliases.csv`：核心美股观察池别名。
 - `data/live/political_watchlist.csv`：真实发布链路的初始观察池。
-- `data/live/political_events.csv`：人工核验后的真实事件输入，初始为空表头。
+- `data/live/source_items.csv`：定时 RSS pipeline 最近一次拉取的公开原始文本。
+- `data/live/source_events.csv`：从 `source_items.csv` 确定性抽取出的事件。
+- `data/live/political_events.csv`：Advisor 稳定读取的真实事件输入，由 RSS/source pipeline 刷新，也可以人工核验后维护。
+- `data/live/source_tracker.csv`：观察池与事件合并后的 tracker。
 
 ## 当前稳定版保留的数据源
 
@@ -24,7 +27,8 @@ gh workflow run "RSS Source Pipeline" \
   -f feeds_path=config/free_rss_feeds.csv \
   -f aliases_path=config/core_us_equity_aliases.csv \
   -f watchlist_path=data/live/political_watchlist.csv \
-  -f max_items_per_feed=25
+  -f max_items_per_feed=50 \
+  -f commit_outputs=true
 ```
 
 ## 暂缓的数据源
@@ -40,9 +44,10 @@ gh workflow run "RSS Source Pipeline" \
 
 ## 推荐运营流程
 
-1. RSS 或人工整理先生成 `source_items.csv` / `source_events.csv`。
-2. 人工核验后，把确认事件写入 `data/live/political_events.csv`。
-3. 发布 Advisor 时使用：
+1. RSS pipeline 定时生成并提交 `data/live/source_items.csv`、`source_events.csv`、`political_events.csv` 和 `source_tracker.csv`。
+2. 人工来源仍可以通过 `Source Event Pipeline` 输入 `source_items.csv`，再选择 `commit_outputs=true` 写回 live CSV。
+3. 如果 RSS 拉到了文章但事件为空，优先检查 alias 覆盖；很多官方政策只写主题词，不写公司名。
+4. 发布 Advisor 时使用：
 
 ```bash
 gh workflow run "Publish Model Recommendations Site" \

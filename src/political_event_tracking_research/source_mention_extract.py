@@ -58,19 +58,32 @@ def load_aliases(path: str | Path) -> list[MentionAlias]:
     return records
 
 
+def normalize_match_text(value: str) -> str:
+    return (
+        value.replace("\u2010", "-")
+        .replace("\u2011", "-")
+        .replace("\u2012", "-")
+        .replace("\u2013", "-")
+        .replace("\u2014", "-")
+        .replace("\u2212", "-")
+    )
+
+
 def alias_pattern(alias: str) -> re.Pattern[str]:
-    escaped = re.escape(alias)
-    if re.fullmatch(r"[A-Za-z]", alias):
+    normalized = normalize_match_text(alias)
+    escaped = re.escape(normalized)
+    if re.fullmatch(r"[A-Za-z]", normalized):
         return re.compile(rf"(?<![A-Za-z0-9])\${escaped}(?![A-Za-z0-9])", re.IGNORECASE)
-    if re.fullmatch(r"[A-Za-z][A-Za-z0-9.\-]{0,9}", alias):
+    if re.fullmatch(r"[A-Za-z][A-Za-z0-9.\-]{0,9}", normalized):
         return re.compile(rf"(?<![A-Za-z0-9$])\$?{escaped}(?![A-Za-z0-9])", re.IGNORECASE)
     return re.compile(escaped, re.IGNORECASE)
 
 
 def match_symbols(text: str, aliases: list[MentionAlias]) -> list[str]:
+    normalized_text = normalize_match_text(text)
     matches: list[str] = []
     for alias_record in aliases:
-        if any(alias_pattern(alias).search(text) for alias in alias_record.aliases):
+        if any(alias_pattern(alias).search(normalized_text) for alias in alias_record.aliases):
             matches.append(alias_record.symbol)
     return sorted(dict.fromkeys(matches))
 

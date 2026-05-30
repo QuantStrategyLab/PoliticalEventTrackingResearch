@@ -6,25 +6,36 @@ on:
       feeds_path:
         description: "RSS feed config CSV path."
         required: false
-        default: "examples/rss_feeds.example.csv"
+        default: "config/free_rss_feeds.csv"
         type: string
       aliases_path:
         description: "Symbol alias CSV path."
         required: false
-        default: "examples/symbol_aliases.example.csv"
+        default: "config/core_us_equity_aliases.csv"
         type: string
       watchlist_path:
         description: "Watchlist CSV path."
         required: false
-        default: "examples/political_watchlist.example.csv"
+        default: "data/live/political_watchlist.csv"
         type: string
       max_items_per_feed:
         description: "Maximum feed items per configured RSS/Atom feed."
         required: false
-        default: "25"
+        default: "50"
         type: string
+      commit_outputs:
+        description: "Commit generated live CSV outputs back to data/live."
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
   schedule:
     - cron: "15 12 * * 6"
+
+permissions:
+  contents: write
 
 jobs:
   build-rss-source-events:
@@ -38,10 +49,10 @@ jobs:
         run: python -m pip install -e .
       - name: Fetch RSS sources and extract mentions
         env:
-          FEEDS_PATH: ${{ github.event.inputs.feeds_path || 'examples/rss_feeds.example.csv' }}
-          ALIASES_PATH: ${{ github.event.inputs.aliases_path || 'examples/symbol_aliases.example.csv' }}
-          WATCHLIST_PATH: ${{ github.event.inputs.watchlist_path || 'examples/political_watchlist.example.csv' }}
-          MAX_ITEMS_PER_FEED: ${{ github.event.inputs.max_items_per_feed || '25' }}
+          FEEDS_PATH: ${{ github.event.inputs.feeds_path || 'config/free_rss_feeds.csv' }}
+          ALIASES_PATH: ${{ github.event.inputs.aliases_path || 'config/core_us_equity_aliases.csv' }}
+          WATCHLIST_PATH: ${{ github.event.inputs.watchlist_path || 'data/live/political_watchlist.csv' }}
+          MAX_ITEMS_PER_FEED: ${{ github.event.inputs.max_items_per_feed || '50' }}
         run: |
           set -euo pipefail
           mkdir -p data/output/rss_source_pipeline
@@ -57,6 +68,29 @@ jobs:
             --watchlist "${WATCHLIST_PATH}" \
             --events data/output/rss_source_pipeline/source_events.csv \
             --output data/output/rss_source_pipeline/source_tracker.csv
+      - name: Publish live CSV outputs to repository
+        env:
+          COMMIT_OUTPUTS: ${{ github.event_name == 'schedule' && 'true' || github.event.inputs.commit_outputs || 'false' }}
+        run: |
+          set -euo pipefail
+          if [ "${COMMIT_OUTPUTS}" != "true" ]; then
+            echo "Live output commit disabled."
+            exit 0
+          fi
+          mkdir -p data/live
+          cp data/output/rss_source_pipeline/source_items.csv data/live/source_items.csv
+          cp data/output/rss_source_pipeline/source_events.csv data/live/source_events.csv
+          cp data/output/rss_source_pipeline/source_events.csv data/live/political_events.csv
+          cp data/output/rss_source_pipeline/source_tracker.csv data/live/source_tracker.csv
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/live/source_items.csv data/live/source_events.csv data/live/political_events.csv data/live/source_tracker.csv
+          if git diff --cached --quiet; then
+            echo "No live RSS output changes to commit."
+          else
+            git commit -m "Update live RSS source events [skip ci]"
+            git push
+          fi
       - name: Upload RSS source artifact
         uses: actions/upload-artifact@v7
         with:

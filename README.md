@@ -80,12 +80,24 @@ python scripts/fetch_rss_sources.py \
 ```
 
 `.github/workflows/rss_source_pipeline.yml` fetches configured RSS/Atom feeds,
-extracts mentions, builds a tracker, and uploads the results as an artifact.
+extracts mentions, builds a tracker, and uploads the results as an artifact. On
+scheduled runs it also commits public live CSV outputs under `data/live/`:
+
+```text
+data/live/source_items.csv
+data/live/source_events.csv
+data/live/political_events.csv
+data/live/source_tracker.csv
+```
+
+`data/live/political_events.csv` is the stable input consumed by
+`QuantAdvisorResearch`. This repository still only publishes source evidence; it
+does not generate investment recommendations.
 
 `.github/workflows/source_event_pipeline.yml` runs the same extraction for an
-operator-provided `source_items.csv` and uploads `source_events.csv` plus
-`source_tracker.csv` as a GitHub Actions artifact. It is intentionally
-artifact-only and does not publish recommendations.
+operator-provided `source_items.csv`. Scheduled runs use `data/live/source_items.csv`
+after the RSS pipeline and can refresh `data/live/source_events.csv`,
+`data/live/political_events.csv`, and `data/live/source_tracker.csv`.
 
 Free-source setup notes are in
 [`docs/free_source_setup.zh-CN.md`](docs/free_source_setup.zh-CN.md).
@@ -127,6 +139,19 @@ date,symbol,close
 ```
 
 The price loader also accepts `as_of` instead of `date`.
+
+## Live Pipeline Notes
+
+If the RSS workflow downloads articles but `source_events.csv` is empty, the
+usual cause is deterministic alias coverage rather than a fetch failure: broad
+policy items often mention sectors such as grid infrastructure or crypto assets
+instead of company names. Alias updates should remain targeted, documented, and
+reviewable to avoid turning every broad policy article into a false positive.
+
+Local macOS Python installations can also fail HTTPS RSS fetches with a local CA
+certificate error. GitHub-hosted runners use a normal CA bundle; local operators
+can either repair the Python certificate store or validate extraction from a
+downloaded `source_items.csv` artifact.
 
 ## Boundary
 
