@@ -46,10 +46,10 @@ python scripts/build_tracker.py \
   --output data/output/political_tracker.example.csv
 ```
 
-把官方来源记录归一化为事件 schema：
+把官方来源、认证社媒和财经媒体线索归一化为事件 schema：
 
 ```bash
-python scripts/import_official_events.py \
+python scripts/import_source_events.py \
   --input examples/official_records.example.csv \
   --output data/output/official_events.example.csv
 ```

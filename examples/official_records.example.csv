@@ -3,4 +3,5 @@ demo-filing-evt1,2026-01-10,EVT1,government_filing,disclosure_buy,bullish,https:
 demo-remarks-evt1,2026-01-20,EVT1,official_remarks,public_mention,bullish,https://www.whitehouse.gov/example/remarks-evt1-2026-01-20,"Synthetic White House-style remarks record for importer validation."
 demo-policy-evt2,2026-02-05,EVT2,government_policy,policy_capital,bullish,https://www.energy.gov/example/evt2-2026-02-05,"Synthetic policy capital record for importer validation."
 demo-issuer-evt3,2026-03-15,EVT3,issuer_release,market_reaction,bullish,https://ir.example.invalid/news/evt3-2026-03-15,"Synthetic issuer release record for importer validation."
-
+demo-social-evt4,2026-04-01,EVT4,verified_social_post,public_mention,bullish,https://truthsocial.com/@example/posts/123456,"Synthetic Truth Social-style primary social record for importer validation."
+demo-media-evt5,2026-04-02,EVT5,financial_media,public_mention,bullish,https://finance.example.invalid/news/evt5-2026-04-02,"Synthetic financial-media lead; imports as low confidence pending primary-source review."

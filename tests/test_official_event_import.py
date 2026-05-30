@@ -22,8 +22,13 @@ def test_import_official_events_normalizes_to_event_schema(tmp_path: Path) -> No
     assert output.exists()
     assert rows[0]["event_id"] == "official-government-filing-demo-filing-evt1"
     assert rows[0]["confidence"] == "high"
-    assert rows[-1]["event_id"] == "official-issuer-release-demo-issuer-evt3"
-    assert rows[-1]["confidence"] == "medium"
+    by_id = {row["event_id"]: row for row in rows}
+    assert by_id["official-issuer-release-demo-issuer-evt3"]["confidence"] == "medium"
+    assert by_id["official-verified-social-post-demo-social-evt4"]["confidence"] == "medium"
+    assert by_id["official-financial-media-demo-media-evt5"]["confidence"] == "low"
+    assert rows[-3]["event_id"] == "official-issuer-release-demo-issuer-evt3"
+    assert rows[-1]["event_id"] == "official-financial-media-demo-media-evt5"
+    assert rows[-1]["confidence"] == "low"
 
 
 def test_government_records_reject_non_gov_urls() -> None:
@@ -41,3 +46,18 @@ def test_government_records_reject_non_gov_urls() -> None:
     with pytest.raises(ValueError, match="government source URLs"):
         normalize_records([record])
 
+
+def test_verified_social_records_reject_untrusted_hosts() -> None:
+    record = OfficialRecord(
+        record_id="bad-social-record",
+        record_date="2026-01-10",
+        symbol="BAD",
+        source_type="verified_social_post",
+        event_type="public_mention",
+        direction="bullish",
+        source_url="https://example.com/post/123",
+        summary="Not a primary social source.",
+    )
+
+    with pytest.raises(ValueError, match="verified social source URLs"):
+        normalize_records([record])

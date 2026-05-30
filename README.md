@@ -47,10 +47,10 @@ python scripts/build_tracker.py \
   --output data/output/political_tracker.example.csv
 ```
 
-Normalize official-source records into the event schema:
+Normalize official, primary social, and media-lead records into the event schema:
 
 ```bash
-python scripts/import_official_events.py \
+python scripts/import_source_events.py \
   --input examples/official_records.example.csv \
   --output data/output/official_events.example.csv
 ```
@@ -113,7 +113,8 @@ This repo does not own:
 
 ## Next Work
 
-1. Add more official-source adapters and record templates.
+1. Add more source adapters and record templates for official filings, official
+   remarks, verified Truth Social / X posts, and financial-media leads.
 2. Add a source adapter for OGE disclosure PDFs or normalized public datasets.
 3. Add public-remarks ingestion from White House pages and social-media exports.
 4. Backfill enough point-in-time events to evaluate hit rate, lag, and false

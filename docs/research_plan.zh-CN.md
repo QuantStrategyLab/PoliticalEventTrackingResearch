@@ -33,11 +33,12 @@
 
 ## 数据源优先级
 
-1. 官方披露：OGE、国会披露、SEC 或发行人公告。
-2. 官方讲话：WhiteHouse.gov、官方转录、正式新闻稿。
-3. 可审计社媒：Truth Social、X 的可复核 URL 或导出。
-4. 市场数据：Longbridge、Yahoo、Polygon、Nasdaq Data Link 或 QuantStrategyLab 已有价格输入。
-5. 二级媒体和社区文章：只做灵感或线索，不直接作为事件证据入库。
+1. 官方披露：OGE、国会披露、SEC 或发行人公告，默认 `high` confidence。
+2. 官方讲话：WhiteHouse.gov、官方转录、正式新闻稿，默认 `high` confidence。
+3. 可审计社媒：Truth Social、X 的本人/官方账号可复核 URL 或导出，默认 `medium` confidence。
+4. 主流财经媒体：只能做 lead，默认 `low` confidence，需要后续找到一级来源。
+5. 市场数据：Longbridge、Yahoo、Polygon、Nasdaq Data Link 或 QuantStrategyLab 已有价格输入。
+6. 其他社区文章：只做灵感，不直接作为事件证据入库。
 
 ## 初版成功标准
 
@@ -45,6 +46,7 @@
 
 - 能从同一 schema 载入合成示例和官方来源事件。
 - 能拒绝把非官方文章 URL 当成政府类事件来源。
+- 能接收 Truth Social / X 的认证社媒来源，并把财经媒体降级为低置信 lead。
 - 能生成候选追踪表，区分已触发点名和仅观察池标的。
 - 能在本地价格 CSV 上计算事件后收益。
 - 能记录数据来源、置信度和未验证事项。

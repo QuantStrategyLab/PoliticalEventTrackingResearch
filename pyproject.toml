@@ -18,6 +18,7 @@ test = ["pytest>=8"]
 petr-build-tracker = "political_event_tracking_research.tracker:main"
 petr-event-study = "political_event_tracking_research.event_study:main"
 petr-import-official-events = "political_event_tracking_research.official_event_import:main"
+petr-import-source-events = "political_event_tracking_research.official_event_import:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

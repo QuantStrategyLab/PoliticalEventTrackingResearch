@@ -24,9 +24,23 @@ not automatically trusted; every event still carries its own `source_url` and
 - Longbridge Developers documentation:
   <https://open.longbridge.com/docs>
 
+## Candidate Primary Social Sources
+
+- Truth Social posts from the relevant verified/person-owned account:
+  <https://truthsocial.com/>
+- X posts from the relevant verified/person-owned account:
+  <https://x.com/>
+
+## Candidate Lead Sources
+
+- Reputable financial media can be used as low-confidence leads only. Leads
+  should be upgraded only after matching official filings, official remarks,
+  primary social posts, issuer releases, or other primary material.
+
 ## Confidence Guide
 
 - `high`: official source or direct filing with stable URL.
-- `medium`: reputable secondary source with enough details to locate official
-  source later.
-- `low`: article, community post, or manually transcribed lead pending review.
+- `medium`: primary social source with a stable, verifiable URL, or issuer
+  release.
+- `low`: financial-media article or manually transcribed lead pending primary
+  source review.
