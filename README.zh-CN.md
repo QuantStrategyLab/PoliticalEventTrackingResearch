@@ -1,5 +1,7 @@
 # PoliticalEventTrackingResearch
 
+> ⚠️ 投资有风险，不构成投资建议，仅供学习交流用途。
+
 [English](README.md) | [简体中文](README.zh-CN.md)
 
 QuantStrategyLab 的确定性研究仓库，用来验证“公开持仓/交易披露 + 官方讲话/公开材料 + 政策资金事件”能否形成可追踪的美股事件线索。
