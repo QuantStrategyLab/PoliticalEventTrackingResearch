@@ -22,6 +22,15 @@ listed here is not automatically trusted; every event still carries its own
 - Federal Reserve press releases, speeches, testimony, and RSS feeds:
   <https://www.federalreserve.gov/newsevents/pressreleases.htm>
   <https://www.federalreserve.gov/feeds/feeds.htm>
+- NIST news, cybersecurity, and energy RSS feeds:
+  <https://www.nist.gov/news-events/news/rss.xml>
+  <https://www.nist.gov/news-events/cybersecurity/rss.xml>
+  <https://www.nist.gov/news-events/energy/rss.xml>
+- CISA news RSS:
+  <https://www.cisa.gov/news.xml>
+- FTC press release pages and RSS feeds, kept as candidates until feed access is stable from the runner:
+  <https://www.ftc.gov/feeds/press-release.xml>
+  <https://www.ftc.gov/feeds/press-release-competition.xml>
 - Federal Register:
   <https://www.federalregister.gov/>
 - USAspending:
@@ -46,13 +55,19 @@ later only if a stable official interface and clear operating policy exist.
 
 ## Current Configured RSS Feeds
 
-`config/free_rss_feeds.csv` currently keeps the stable default set small:
+`config/free_rss_feeds.csv` keeps the stable default set limited to official
+feeds that can be replayed without login:
 
 - White House presidential actions
 - SEC press releases
 - SEC speeches and statements
 - Federal Reserve press releases
 - Federal Reserve speeches and testimony
+- NIST general, cybersecurity, and energy news
+- CISA news
+
+FTC RSS URLs are documented above as candidates, but are not in the default CSV
+because the feed returned 403 to the current Python fetcher during verification.
 
 `data/live/source_manifest.json` records source row counts, feed health, covered
 symbols, confidence counts, and event-type counts for every published live run.

@@ -19,7 +19,11 @@
 - SEC speeches/statements RSS。
 - Federal Reserve press releases RSS。
 - Federal Reserve speeches/testimony RSS。
+- NIST general / cybersecurity / energy RSS。
+- CISA news RSS。
 - 人工整理后的官方来源、发行人公告和财经媒体 lead CSV。
+
+FTC press release RSS 暂时只作为候选源记录在 `docs/source_registry.md`；当前 Python fetcher 验证时返回 403，因此不放入默认稳定配置。
 
 运行 RSS：
 

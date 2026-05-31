@@ -16,7 +16,10 @@ from pathlib import Path
 from .csv_utils import read_csv_rows, write_csv_rows
 
 
-USER_AGENT = "QuantStrategyLabSourceIngest/0.1 (https://github.com/QuantStrategyLab/PoliticalEventTrackingResearch)"
+USER_AGENT = (
+    "Mozilla/5.0 (compatible; QuantStrategyLabSourceIngest/0.1; "
+    "+https://github.com/QuantStrategyLab/PoliticalEventTrackingResearch)"
+)
 
 
 @dataclass(frozen=True)
@@ -60,7 +63,13 @@ def load_feed_config(path: str | Path) -> list[FeedConfig]:
 
 
 def fetch_url(url: str) -> bytes:
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": USER_AGENT,
+            "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+        },
+    )
     with urllib.request.urlopen(request, timeout=20) as response:
         return response.read()
 

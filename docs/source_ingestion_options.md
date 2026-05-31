@@ -18,6 +18,9 @@ RSS/API/export
 | --- | --- | --- | --- |
 | White House presidential actions | RSS: `https://www.whitehouse.gov/presidential-actions/feed/` | high | Some briefing-room category `/feed/` URLs may be unstable; keep feed URLs explicit in config. |
 | SEC releases/materials | Official RSS page and press release feed | high | SEC documents RSS availability for press releases, speeches/statements, litigation releases, EDGAR searches, and more. |
+| Federal Reserve | Official press release, speech, and testimony RSS | high | Used for monetary policy and financial-system context. |
+| NIST / CISA | Official RSS feeds in `config/free_rss_feeds.csv` | high | Adds technology standards, cybersecurity, and energy coverage without login. |
+| FTC | Candidate RSS/page source | high | FTC feeds returned 403 to the current Python fetcher during verification, so they are documented but not enabled by default. |
 | Federal Register / USAspending | Future API adapters or operator-provided CSV export | high | Public APIs are good candidates for later stable adapters. |
 | Issuer releases | Operator-provided CSV or future RSS/API adapter | medium | Use direct issuer/IR URLs. |
 | Financial media | RSS/API/vendor feed into `source_items.csv` | low | Use as lead only. Upgrade after matching official, filing, or issuer material. |
