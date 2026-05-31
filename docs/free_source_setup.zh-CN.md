@@ -1,5 +1,14 @@
 # 免费数据源配置
 
+
+## English summary
+
+- Purpose: this document covers `免费数据源配置` for `PoliticalEventTrackingResearch`.
+- Main topics: `已落地文件`, `当前稳定版保留的数据源`, `暂缓的数据源`, `推荐运营流程`, `长线证据边界`.
+- Read the boundaries, inputs, outputs, and permission requirements before running commands, CI jobs, dry-runs, releases, or runtime switches.
+- For live trading, secrets, Cloud Run, exchange, or broker API changes, validate in test or dry-run mode first and do not change production only from examples.
+- If this summary differs from the detailed Chinese body, follow the concrete commands, configuration keys, and constraints in the body.
+
 ## 已落地文件
 
 - `config/free_rss_feeds.csv`：无需账号的官方 RSS 源。
