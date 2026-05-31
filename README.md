@@ -176,7 +176,7 @@ This repo does not own:
 - Telegram or runtime notifications
 - paid market-data redistribution
 - legal claims about conflicts of interest
-- AI-generated shadow signals; those belong in `AiLongHorizonSignalPipelines`
+- AI-generated shadow signals; those belong in `ResearchSignalContextPipelines`
 - live strategy promotion into `UsEquityStrategies` or broker platforms
 
 ## Next Work
@@ -196,6 +196,6 @@ industrials, and EV/auto themes can all enter the same `source_items.csv` /
 `source_events.csv` structure when durable primary sources exist.
 
 Theme membership and long-horizon semantic bias belong in
-`AiLongHorizonSignalPipelines`; this repository only preserves point-in-time
+`ResearchSignalContextPipelines`; this repository only preserves point-in-time
 factual evidence so the source boundary is not changed just because a symbol is
 currently popular.

@@ -59,7 +59,7 @@ financials, healthcare, consumer platforms, industrials, crypto infrastructure,
 and EV/auto themes when a durable primary source exists.
 
 Theme membership and long-horizon semantic bias are owned by
-`AiLongHorizonSignalPipelines`.  This repository only emits point-in-time source
+`ResearchSignalContextPipelines`.  This repository only emits point-in-time source
 items and events with URLs, dates, source type, and confidence.  A source item
 must not be promoted just because a theme or symbol is popular in the current
 market.

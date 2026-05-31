@@ -84,7 +84,7 @@ item_id,published_at,source_type,source_url,author,text
 
 本仓库不调用模型、不保存模型判断、不产出 AI 影子信号。
 
-`AiLongHorizonSignalPipelines` 负责长期 AI 观点、context bundle、issue handoff 和 shadow artifact replay。
+`ResearchSignalContextPipelines` 负责长期 AI 观点、context bundle、issue handoff 和 shadow artifact replay。
 本仓库只负责可审计事件事实、来源复核、候选追踪和事件收益统计。
 
 如果未来需要 AI，它只能作为离线文本抽取辅助，输出仍需落到人工可复核的事件 schema，并保留原始来源 URL。

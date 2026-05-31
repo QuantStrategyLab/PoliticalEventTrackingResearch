@@ -28,7 +28,7 @@ QuantStrategyLab 的确定性研究仓库，用来验证“公开持仓/交易�
 - Telegram 或实盘通知
 - 受版权限制的行情数据分发
 - 对利益冲突作法律结论
-- AI 生成的长期影子信号；这类产物继续归 `AiLongHorizonSignalPipelines`
+- AI 生成的长期影子信号；这类产物继续归 `ResearchSignalContextPipelines`
 - 直接把信号推广到实盘策略
 
 ## 当前状态
@@ -138,4 +138,4 @@ RSS fetcher 会把每个源的成功/失败写入 `data/live/source_fetch_status
 
 稳定源不局限于 AI 板块。半导体、数据中心电力、网络安全、国防、能源、金融、医疗、消费平台、工业和 EV/汽车等方向，只要有 SEC、官方政策、发行人公告、政府采购或其他一手来源，都可以进入同一套 `source_items.csv` / `source_events.csv` 结构。
 
-主题归属和长期语义判断由 `AiLongHorizonSignalPipelines` 维护；本仓库只负责点时事实证据，避免因为短期热点临时改变采集边界。
+主题归属和长期语义判断由 `ResearchSignalContextPipelines` 维护；本仓库只负责点时事实证据，避免因为短期热点临时改变采集边界。
