@@ -1,0 +1,51 @@
+{
+  "failed_feed_count": 1,
+  "feed_count": 6,
+  "feeds": [
+    {
+      "error": "",
+      "feed_id": "whitehouse-presidential-actions",
+      "feed_url": "https://www.whitehouse.gov/presidential-actions/feed/",
+      "item_count": 30,
+      "ok": true
+    },
+    {
+      "error": "",
+      "feed_id": "sec-press-releases",
+      "feed_url": "https://www.sec.gov/news/pressreleases.rss",
+      "item_count": 25,
+      "ok": true
+    },
+    {
+      "error": "",
+      "feed_id": "sec-speeches-statements",
+      "feed_url": "https://www.sec.gov/news/speeches-statements.rss",
+      "item_count": 25,
+      "ok": true
+    },
+    {
+      "error": "HTTPError: HTTP Error 404: Not Found",
+      "feed_id": "treasury-press-releases",
+      "feed_url": "https://home.treasury.gov/rss/press-releases.xml",
+      "item_count": 0,
+      "ok": false
+    },
+    {
+      "error": "",
+      "feed_id": "federal-reserve-press-releases",
+      "feed_url": "https://www.federalreserve.gov/feeds/press_all.xml",
+      "item_count": 20,
+      "ok": true
+    },
+    {
+      "error": "",
+      "feed_id": "federal-reserve-speeches-testimony",
+      "feed_url": "https://www.federalreserve.gov/feeds/speeches_and_testimony.xml",
+      "item_count": 15,
+      "ok": true
+    }
+  ],
+  "generated_at": "2026-05-31T06:08:11Z",
+  "item_count": 115,
+  "successful_feed_count": 5
+}
