@@ -1,5 +1,5 @@
 {
-  "artifact_count": 4,
+  "artifact_count": 5,
   "artifacts": {
     "political_events.csv": {
       "path": "data/live/political_events.csv",
@@ -10,6 +10,11 @@
       "path": "data/live/source_events.csv",
       "row_count": 10,
       "sha256": "33514f4cfe09b96f4d8fba0f1b525705821917104faf395d32acada5eea1963e"
+    },
+    "source_fetch_status.json": {
+      "path": "data/live/source_fetch_status.json",
+      "row_count": null,
+      "sha256": "7fe5b7ed24a81ff121848a29578e5b784ee6739823c6c80682ac5cfad8252cee"
     },
     "source_items.csv": {
       "path": "data/live/source_items.csv",
@@ -22,6 +27,32 @@
       "sha256": "a7811e9af5a3fa47ea9d7969300f17774fda9e8f924bcb58d82ce717402c4971"
     }
   },
-  "generated_at": "2026-05-31T06:14:28.580375+00:00",
+  "data_quality": {
+    "feed_status": {
+      "failed_feed_count": 0,
+      "feed_count": 5,
+      "feed_success_ratio": 1.0,
+      "successful_feed_count": 5
+    },
+    "source_events": {
+      "confidence_counts": {
+        "high": 10
+      },
+      "event_type_counts": {
+        "public_mention": 10
+      },
+      "symbol_count": 7,
+      "symbols": [
+        "COIN",
+        "CVX",
+        "MSTR",
+        "NEE",
+        "PANW",
+        "VRT",
+        "XOM"
+      ]
+    }
+  },
+  "generated_at": "2026-05-31T07:59:12.707883+00:00",
   "manifest_type": "political_event_live_outputs"
 }
