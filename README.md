@@ -144,13 +144,14 @@ The price loader also accepts `as_of` instead of `date`.
 
 ## Live Pipeline Notes
 
-The RSS fetcher records per-feed health in `data/live/source_fetch_status.json` and keeps a small hash/row-count manifest in `data/live/source_manifest.json`. A single blocked or unavailable feed should not stop the rest of the official-source refresh.
+The RSS fetcher records per-feed health in `data/live/source_fetch_status.json` and keeps a small hash/row-count plus data-quality manifest in `data/live/source_manifest.json`. The manifest summarizes feed health, covered symbols, confidence counts, and event-type counts. A single blocked or unavailable feed should not stop the rest of the official-source refresh.
 
 If the RSS workflow downloads articles but `source_events.csv` is empty, the
 usual cause is deterministic alias coverage rather than a fetch failure: broad
-policy items often mention sectors such as grid infrastructure or crypto assets
-instead of company names. Alias updates should remain targeted, documented, and
-reviewable to avoid turning every broad policy article into a false positive.
+policy items often mention sectors such as grid infrastructure, HBM, foundry,
+AI servers, or crypto assets instead of company names. Alias updates should
+remain targeted, documented, and reviewable to avoid turning every broad policy
+article into a false positive.
 
 Local macOS Python installations can also fail HTTPS RSS fetches with a local CA
 certificate error. GitHub-hosted runners use a normal CA bundle; local operators

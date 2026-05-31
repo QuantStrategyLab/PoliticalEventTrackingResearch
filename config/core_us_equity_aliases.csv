@@ -1,26 +1,26 @@
 symbol,name,aliases
 AAPL,Apple,Apple|AAPL|iPhone|iPad|Mac|Tim Cook
-AMD,Advanced Micro Devices,AMD|Advanced Micro Devices|Radeon|EPYC|Instinct
+AMD,Advanced Micro Devices,AMD|Advanced Micro Devices|Radeon|EPYC|Instinct|MI300|MI350
 AMZN,Amazon,Amazon|AMZN|AWS|Amazon Web Services|Project Kuiper
 AVGO,Broadcom,Broadcom|AVGO|VMware
 BA,Boeing,Boeing|BA|737 MAX|Starliner
 COIN,Coinbase,Coinbase|COIN|crypto exchange|crypto assets|digital assets|crypto asset transactions
 CRWD,CrowdStrike,CrowdStrike|CRWD|Falcon cybersecurity
 CVX,Chevron,Chevron|CVX|energy-related infrastructure|energy related infrastructure|large-scale energy|oil and gas
-DELL,Dell Technologies,Dell|Dell Technologies|DELL|AI server|PowerEdge
+DELL,Dell Technologies,Dell|Dell Technologies|DELL|AI server|PowerEdge|PowerScale|PowerStore|enterprise server|data center infrastructure
 ENPH,Enphase Energy,Enphase|ENPH|solar inverter
 F,Ford,Ford|F|F-150|Mustang Mach-E
 GE,GE Aerospace,GE Aerospace|General Electric|GE|jet engine
 GME,GameStop,GameStop|GME
 GOOGL,Alphabet,Alphabet|Google|GOOGL|GOOG|Gemini|Waymo
-INTC,Intel,Intel|INTC|foundry|CHIPS Act
+INTC,Intel,Intel|INTC|foundry|Intel Foundry|CHIPS Act|semiconductor manufacturing|advanced packaging|Gaudi
 IONQ,IonQ,IonQ|IONQ|quantum computing
 JPM,JPMorgan Chase,JPMorgan|JPMorgan Chase|JPM|Jamie Dimon
 LMT,Lockheed Martin,Lockheed Martin|LMT|F-35|missile defense
 META,Meta Platforms,Meta|META|Facebook|Instagram|WhatsApp|Llama
 MSFT,Microsoft,Microsoft|MSFT|Azure|OpenAI|Copilot
 MSTR,Strategy,Strategy|MicroStrategy|MSTR|Michael Saylor|Bitcoin treasury|crypto assets|Bitcoin
-MU,Micron Technology,Micron|MU|HBM|DRAM|NAND
+MU,Micron Technology,Micron|Micron Technology|MU|HBM|High Bandwidth Memory|DRAM|NAND|memory chip
 NEE,NextEra Energy,NextEra|NEE|renewable energy|grid infrastructure|energy-related infrastructure|energy related infrastructure|large-scale energy|renewable power
 NOC,Northrop Grumman,Northrop Grumman|NOC|B-21
 NVDA,NVIDIA,NVIDIA|Nvidia|NVDA|Blackwell|CUDA|GPU
@@ -37,5 +37,5 @@ SOFI,SoFi Technologies,SoFi|SOFI
 TSLA,Tesla,Tesla|TSLA|Elon Musk|Cybertruck|FSD|Optimus|xAI
 TSM,Taiwan Semiconductor,TSMC|Taiwan Semiconductor|TSM|foundry
 UNH,UnitedHealth Group,UnitedHealth|UNH|UnitedHealthcare
-VRT,Vertiv,Vertiv|VRT|data center power|liquid cooling|grid infrastructure|energy-related infrastructure|energy related infrastructure|large-scale energy|data center energy
+VRT,Vertiv,Vertiv|Vertiv Holdings|VRT|data center power|liquid cooling|grid infrastructure|energy-related infrastructure|energy related infrastructure|large-scale energy|data center energy|critical digital infrastructure|thermal management
 XOM,Exxon Mobil,Exxon|ExxonMobil|XOM|energy-related infrastructure|energy related infrastructure|large-scale energy|oil and gas

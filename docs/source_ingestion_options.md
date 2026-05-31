@@ -36,6 +36,7 @@ not part of this release. Reasons:
 - `scripts/fetch_rss_sources.py` fetches RSS/Atom feeds into `source_items.csv`.
 - `scripts/extract_source_mentions.py` converts `source_items.csv` into normalized event rows by deterministic alias matching.
 - `scripts/import_source_events.py` remains available when upstream records are already normalized.
+- `scripts/write_live_manifest.py` records hash, row-count, feed-health, covered-symbol, confidence, and event-type summaries for live artifacts.
 
 ## Operational Caveats
 

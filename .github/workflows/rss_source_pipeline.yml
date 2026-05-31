@@ -88,6 +88,7 @@ jobs:
           python scripts/write_live_manifest.py \
             --base-dir . \
             --output data/live/source_manifest.json \
+            data/live/source_fetch_status.json \
             data/live/source_items.csv \
             data/live/source_events.csv \
             data/live/political_events.csv \

@@ -44,6 +44,26 @@ The stable release intentionally excludes X / Twitter, Truth Social, and
 Longbridge community/profile/following-list ingestion. They can be revisited
 later only if a stable official interface and clear operating policy exist.
 
+## Current Configured RSS Feeds
+
+`config/free_rss_feeds.csv` currently keeps the stable default set small:
+
+- White House presidential actions
+- SEC press releases
+- SEC speeches and statements
+- Federal Reserve press releases
+- Federal Reserve speeches and testimony
+
+`data/live/source_manifest.json` records source row counts, feed health, covered
+symbols, confidence counts, and event-type counts for every published live run.
+
+## Alias Coverage Notes
+
+`config/core_us_equity_aliases.csv` includes targeted aliases for the current AI
+and data-center names that often appear through products or infrastructure terms,
+including MU, INTC, AMD, DELL, and VRT. Alias updates should prefer company names,
+product names, or clear infrastructure phrases over very broad hype terms.
+
 ## Confidence Guide
 
 - `high`: official government source or direct filing with stable URL.
