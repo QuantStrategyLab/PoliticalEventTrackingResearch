@@ -130,6 +130,10 @@ RSS fetcher 会把每个源的成功/失败写入 `data/live/source_fetch_status
 
 免费数据源配置见 [docs/free_source_setup.zh-CN.md](docs/free_source_setup.zh-CN.md)。
 
+## 短线事件层边界
+
+本仓库是短线事实事件输入层，服务 Advisor 的 `1-10个交易日` 事件催化判断。它只输出来源、日期、事件类型和置信度，不直接输出短线买卖推荐；最终短/中/长线推荐仍由 `QuantAdvisorResearch` 合成。
+
 ## 跨板块来源原则
 
 稳定源不局限于 AI 板块。半导体、数据中心电力、网络安全、国防、能源、金融、医疗、消费平台、工业和 EV/汽车等方向，只要有 SEC、官方政策、发行人公告、政府采购或其他一手来源，都可以进入同一套 `source_items.csv` / `source_events.csv` 结构。

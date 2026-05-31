@@ -157,6 +157,10 @@ certificate error. GitHub-hosted runners use a normal CA bundle; local operators
 can either repair the Python certificate store or validate extraction from a
 downloaded `source_items.csv` artifact.
 
+## Short-Horizon Event Boundary
+
+This repository is the short-horizon event evidence layer for Advisor `1-10 trading days` catalyst checks. It emits source URLs, dates, event types, and confidence only. It does not directly produce short-term buy/sell recommendations; final short/medium/long recommendations remain in `QuantAdvisorResearch`.
+
 ## Boundary
 
 This repo owns:
