@@ -1,0 +1,27 @@
+{
+  "artifact_count": 4,
+  "artifacts": {
+    "political_events.csv": {
+      "path": "data/live/political_events.csv",
+      "row_count": 8,
+      "sha256": "57535db3674809e8ae8f755e37690cdde0b753df7f5c895dc5c377c58e5f2341"
+    },
+    "source_events.csv": {
+      "path": "data/live/source_events.csv",
+      "row_count": 8,
+      "sha256": "57535db3674809e8ae8f755e37690cdde0b753df7f5c895dc5c377c58e5f2341"
+    },
+    "source_items.csv": {
+      "path": "data/live/source_items.csv",
+      "row_count": 80,
+      "sha256": "057e9f1e7bbaebe24f697e00f6cf01c6145fc6053b530dcde9c2fd6d6194b061"
+    },
+    "source_tracker.csv": {
+      "path": "data/live/source_tracker.csv",
+      "row_count": 39,
+      "sha256": "2674a2c0e069653dc7aea28992d51a1900eed03ab261d9fe61c2d56fb3a9511c"
+    }
+  },
+  "generated_at": "2026-05-31T06:05:05.577348+00:00",
+  "manifest_type": "political_event_live_outputs"
+}

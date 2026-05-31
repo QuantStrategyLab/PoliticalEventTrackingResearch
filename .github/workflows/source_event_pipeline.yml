@@ -71,9 +71,16 @@ jobs:
           cp data/output/source_event_pipeline/source_events.csv data/live/source_events.csv
           cp data/output/source_event_pipeline/source_events.csv data/live/political_events.csv
           cp data/output/source_event_pipeline/source_tracker.csv data/live/source_tracker.csv
+          python scripts/write_live_manifest.py \
+            --base-dir . \
+            --output data/live/source_manifest.json \
+            data/live/source_items.csv \
+            data/live/source_events.csv \
+            data/live/political_events.csv \
+            data/live/source_tracker.csv
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/live/source_events.csv data/live/political_events.csv data/live/source_tracker.csv
+          git add data/live/source_events.csv data/live/political_events.csv data/live/source_tracker.csv data/live/source_manifest.json
           if git diff --cached --quiet; then
             echo "No live source output changes to commit."
           else

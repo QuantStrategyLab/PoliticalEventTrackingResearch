@@ -17,6 +17,9 @@
 - White House presidential actions RSS。
 - SEC press releases RSS。
 - SEC speeches/statements RSS。
+- Treasury press releases RSS。
+- Federal Reserve press releases RSS。
+- Federal Reserve speeches/testimony RSS。
 - 人工整理后的官方来源、发行人公告和财经媒体 lead CSV。
 
 运行 RSS：
@@ -44,9 +47,10 @@ gh workflow run "RSS Source Pipeline" \
 
 ## 推荐运营流程
 
-1. RSS pipeline 定时生成并提交 `data/live/source_items.csv`、`source_events.csv`、`political_events.csv` 和 `source_tracker.csv`。
+1. RSS pipeline 定时生成并提交 `data/live/source_items.csv`、`source_events.csv`、`political_events.csv`、`source_tracker.csv`、`source_fetch_status.json` 和 `source_manifest.json`。
 2. 人工来源仍可以通过 `Source Event Pipeline` 输入 `source_items.csv`，再选择 `commit_outputs=true` 写回 live CSV。
-3. 如果 RSS 拉到了文章但事件为空，优先检查 alias 覆盖；很多官方政策只写主题词，不写公司名。
+3. 如果单个 RSS 源失败，workflow 会继续处理其他源，并把失败写入 `source_fetch_status.json`；连续失败的源再单独移除或替换。
+4. 如果 RSS 拉到了文章但事件为空，优先检查 alias 覆盖；很多官方政策只写主题词，不写公司名。
 4. 发布 Advisor 时使用：
 
 ```bash

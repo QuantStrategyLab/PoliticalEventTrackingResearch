@@ -17,6 +17,12 @@ listed here is not automatically trusted; every event still carries its own
 - SEC press releases and EDGAR materials:
   <https://www.sec.gov/newsroom/press-releases>
   <https://www.sec.gov/edgar/search/>
+- U.S. Treasury press releases and RSS feed:
+  <https://home.treasury.gov/news/press-releases>
+  <https://home.treasury.gov/rss/press-releases.xml>
+- Federal Reserve press releases, speeches, testimony, and RSS feeds:
+  <https://www.federalreserve.gov/newsevents/pressreleases.htm>
+  <https://www.federalreserve.gov/feeds/feeds.htm>
 - Federal Register:
   <https://www.federalregister.gov/>
 - USAspending:

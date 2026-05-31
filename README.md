@@ -88,6 +88,8 @@ data/live/source_items.csv
 data/live/source_events.csv
 data/live/political_events.csv
 data/live/source_tracker.csv
+data/live/source_fetch_status.json
+data/live/source_manifest.json
 ```
 
 `data/live/political_events.csv` is the stable input consumed by
@@ -141,6 +143,8 @@ date,symbol,close
 The price loader also accepts `as_of` instead of `date`.
 
 ## Live Pipeline Notes
+
+The RSS fetcher records per-feed health in `data/live/source_fetch_status.json` and keeps a small hash/row-count manifest in `data/live/source_manifest.json`. A single blocked or unavailable feed should not stop the rest of the official-source refresh.
 
 If the RSS workflow downloads articles but `source_events.csv` is empty, the
 usual cause is deterministic alias coverage rather than a fetch failure: broad

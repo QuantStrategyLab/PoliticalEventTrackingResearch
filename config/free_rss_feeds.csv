@@ -2,3 +2,6 @@ feed_id,feed_url,source_type,author
 whitehouse-presidential-actions,https://www.whitehouse.gov/presidential-actions/feed/,official_remarks,White House
 sec-press-releases,https://www.sec.gov/news/pressreleases.rss,regulatory_action,SEC
 sec-speeches-statements,https://www.sec.gov/news/speeches-statements.rss,regulatory_action,SEC
+treasury-press-releases,https://home.treasury.gov/rss/press-releases.xml,government_policy,Treasury
+federal-reserve-press-releases,https://www.federalreserve.gov/feeds/press_all.xml,government_policy,Federal Reserve
+federal-reserve-speeches-testimony,https://www.federalreserve.gov/feeds/speeches_and_testimony.xml,official_remarks,Federal Reserve

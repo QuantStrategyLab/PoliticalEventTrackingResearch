@@ -86,6 +86,8 @@ data/live/source_items.csv
 data/live/source_events.csv
 data/live/political_events.csv
 data/live/source_tracker.csv
+data/live/source_fetch_status.json
+data/live/source_manifest.json
 ```
 
 其中 `data/live/political_events.csv` 是 `QuantAdvisorResearch` 读取的稳定事件输入。本仓库仍然只发布来源证据，不生成投资建议。
@@ -109,6 +111,8 @@ python -m pytest -q
 ```
 
 ## Live pipeline 说明
+
+RSS fetcher 会把每个源的成功/失败写入 `data/live/source_fetch_status.json`，并在 `data/live/source_manifest.json` 保留 live CSV 的 hash 和行数。单个源被屏蔽或临时不可用时，不应阻断其他官方源刷新。
 
 如果 RSS workflow 能拉到 `source_items.csv`，但 `source_events.csv` 为空，通常不是新闻没跑，而是确定性 alias 覆盖不足：很多政策文件只写“grid infrastructure”“crypto assets”这类主题词，不直接写公司名。后续补 alias 要保持克制、可审计，避免把所有宽泛政策新闻都误映射成公司事件。
 

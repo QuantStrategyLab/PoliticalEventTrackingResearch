@@ -5,9 +5,11 @@ import datetime as dt
 import email.utils
 import hashlib
 import html
+import json
 import re
 import urllib.request
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -23,6 +25,24 @@ class FeedConfig:
     feed_url: str
     source_type: str
     author: str
+
+
+@dataclass(frozen=True)
+class FeedFetchStatus:
+    feed_id: str
+    feed_url: str
+    ok: bool
+    item_count: int
+    error: str = ""
+
+    def to_json(self) -> dict[str, object]:
+        return {
+            "feed_id": self.feed_id,
+            "feed_url": self.feed_url,
+            "ok": self.ok,
+            "item_count": self.item_count,
+            "error": self.error,
+        }
 
 
 def load_feed_config(path: str | Path) -> list[FeedConfig]:
@@ -139,12 +159,68 @@ def parse_feed_items(feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25
     return rows
 
 
-def fetch_rss_sources(feeds_path: str | Path, output_path: str | Path, *, max_items_per_feed: int = 25) -> list[dict[str, str]]:
+def utc_now_iso() -> str:
+    return dt.datetime.now(dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def write_fetch_status(path: str | Path, statuses: list[FeedFetchStatus], *, item_count: int) -> None:
+    payload = {
+        "generated_at": utc_now_iso(),
+        "feed_count": len(statuses),
+        "successful_feed_count": sum(1 for item in statuses if item.ok),
+        "failed_feed_count": sum(1 for item in statuses if not item.ok),
+        "item_count": item_count,
+        "feeds": [item.to_json() for item in statuses],
+    }
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def fetch_rss_sources(
+    feeds_path: str | Path,
+    output_path: str | Path,
+    *,
+    max_items_per_feed: int = 25,
+    continue_on_feed_error: bool = False,
+    status_output: str | Path | None = None,
+    fetcher: Callable[[str], bytes] = fetch_url,
+) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
+    statuses: list[FeedFetchStatus] = []
     for feed in load_feed_config(feeds_path):
-        rows.extend(parse_feed_items(fetch_url(feed.feed_url), feed, max_items=max_items_per_feed))
+        try:
+            feed_rows = parse_feed_items(fetcher(feed.feed_url), feed, max_items=max_items_per_feed)
+        except Exception as exc:
+            statuses.append(
+                FeedFetchStatus(
+                    feed_id=feed.feed_id,
+                    feed_url=feed.feed_url,
+                    ok=False,
+                    item_count=0,
+                    error=f"{type(exc).__name__}: {exc}",
+                )
+            )
+            if not continue_on_feed_error:
+                raise
+            continue
+        rows.extend(feed_rows)
+        statuses.append(
+            FeedFetchStatus(
+                feed_id=feed.feed_id,
+                feed_url=feed.feed_url,
+                ok=True,
+                item_count=len(feed_rows),
+            )
+        )
+    if statuses and not any(item.ok for item in statuses):
+        if status_output:
+            write_fetch_status(status_output, statuses, item_count=0)
+        raise RuntimeError("all configured RSS/Atom feeds failed")
     rows.sort(key=lambda row: (row["published_at"], row["item_id"]))
     write_csv_rows(output_path, ["item_id", "published_at", "source_type", "source_url", "author", "text"], rows)
+    if status_output:
+        write_fetch_status(status_output, statuses, item_count=len(rows))
     return rows
 
 
@@ -153,12 +229,24 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--feeds", required=True, help="Feed config CSV.")
     parser.add_argument("--output", required=True, help="Output source_items CSV.")
     parser.add_argument("--max-items-per-feed", type=int, default=25)
+    parser.add_argument(
+        "--continue-on-feed-error",
+        action="store_true",
+        help="Continue when one RSS/Atom feed fails and record the failure in --status-output.",
+    )
+    parser.add_argument("--status-output", help="Optional JSON feed-health status output path.")
     return parser
 
 
 def main(argv: list[str] | None = None) -> None:
     args = build_arg_parser().parse_args(argv)
-    fetch_rss_sources(args.feeds, args.output, max_items_per_feed=args.max_items_per_feed)
+    fetch_rss_sources(
+        args.feeds,
+        args.output,
+        max_items_per_feed=args.max_items_per_feed,
+        continue_on_feed_error=args.continue_on_feed_error,
+        status_output=args.status_output,
+    )
 
 
 if __name__ == "__main__":
