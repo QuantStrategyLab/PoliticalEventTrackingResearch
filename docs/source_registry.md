@@ -83,3 +83,13 @@ Theme membership and long-horizon semantic bias are owned by
 items and events with URLs, dates, source type, and confidence.  A source item
 must not be promoted just because a theme or symbol is popular in the current
 market.
+
+## Long-Horizon Evidence Boundary
+
+Long-horizon recommendations in `QuantAdvisorResearch` should not depend on this
+repository alone. This repository can improve confidence when durable primary
+evidence exists, such as SEC filings, issuer releases, official procurement,
+Federal Register notices, agency grants, or official policy documents. If those
+events are absent, the Advisor may still rank a symbol through theme context and
+momentum; that should be interpreted as low event/news support rather than an
+ingestion failure in this repository.

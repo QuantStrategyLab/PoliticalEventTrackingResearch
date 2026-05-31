@@ -50,7 +50,7 @@ gh workflow run "RSS Source Pipeline" \
 2. 人工来源仍可以通过 `Source Event Pipeline` 输入 `source_items.csv`，再选择 `commit_outputs=true` 写回 live CSV。
 3. 如果单个 RSS 源失败，workflow 会继续处理其他源，并把失败写入 `source_fetch_status.json`；连续失败的源再单独移除或替换。
 4. 如果 RSS 拉到了文章但事件为空，优先检查 alias 覆盖；很多官方政策只写主题词，不写公司名。
-4. 发布 Advisor 时使用：
+5. 发布 Advisor 时使用：
 
 ```bash
 gh workflow run "Publish Model Recommendations Site" \
@@ -62,3 +62,9 @@ gh workflow run "Publish Model Recommendations Site" \
 ```
 
 如果 `political_events_path` / `political_watchlist_path` 不在 `examples/` 下，Advisor 输出会标记为 `source_mode=operator_supplied`。
+
+## 长线证据边界
+
+本仓库可以给长线推荐提供官方来源加分，但不要求每个长线候选都必须有近期政策/新闻事件。长线主题归属和语义背景由 `ResearchSignalContextPipelines` 维护；本仓库只在存在 SEC 文件、发行人公告、政府采购、Federal Register、官方拨款或政策文件时提供点时事实证据。
+
+因此 Advisor 里出现“政策/新闻分数低”并不必然是采集失败，也可能只是该标的当前主要来自主题背景和动量。
