@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date
 from pathlib import Path
 
 from .csv_utils import read_csv_rows, write_csv_rows
