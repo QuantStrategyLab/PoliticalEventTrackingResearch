@@ -1,6 +1,6 @@
 {
   "failed_feed_count": 0,
-  "feed_count": 5,
+  "feed_count": 9,
   "feeds": [
     {
       "error": "",
@@ -36,9 +36,37 @@
       "feed_url": "https://www.federalreserve.gov/feeds/speeches_and_testimony.xml",
       "item_count": 15,
       "ok": true
+    },
+    {
+      "error": "",
+      "feed_id": "nist-news",
+      "feed_url": "https://www.nist.gov/news-events/news/rss.xml",
+      "item_count": 40,
+      "ok": true
+    },
+    {
+      "error": "",
+      "feed_id": "nist-cybersecurity",
+      "feed_url": "https://www.nist.gov/news-events/cybersecurity/rss.xml",
+      "item_count": 0,
+      "ok": true
+    },
+    {
+      "error": "",
+      "feed_id": "nist-energy",
+      "feed_url": "https://www.nist.gov/news-events/energy/rss.xml",
+      "item_count": 40,
+      "ok": true
+    },
+    {
+      "error": "",
+      "feed_id": "cisa-news",
+      "feed_url": "https://www.cisa.gov/news.xml",
+      "item_count": 10,
+      "ok": true
     }
   ],
-  "generated_at": "2026-05-31T07:59:12Z",
-  "item_count": 115,
-  "successful_feed_count": 5
+  "generated_at": "2026-05-31T14:25:36Z",
+  "item_count": 205,
+  "successful_feed_count": 9
 }

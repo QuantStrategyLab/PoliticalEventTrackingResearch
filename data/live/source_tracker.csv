@@ -1,10 +1,12 @@
 symbol,name,bucket,trigger_status,priority_score,event_count,latest_event_date,latest_event_type,source_url,thesis
+PANW,Palo Alto Networks,policy_capital,mentioned,39,5,2026-05-01,public_mention,https://investors.paloaltonetworks.com/,"Cybersecurity, federal spend, and breach-response watch."
+INTC,Intel,policy_capital,policy_triggered,25,3,2024-05-07,public_mention,https://www.intc.com/,"CHIPS Act, foundry, export-control, and domestic semiconductor policy watch."
+MSTR,Strategy,named_mentioned,mentioned,25,3,2026-03-17,public_mention,https://www.strategy.com/investor-relations,"Bitcoin treasury, crypto regulation, and capital-market sentiment watch."
 COIN,Coinbase,named_mentioned,mentioned,18,2,2026-05-08,public_mention,https://investor.coinbase.com/,"Crypto policy, SEC enforcement, and market-structure watch."
 NEE,NextEra Energy,policy_capital,mentioned,18,2,2026-04-20,public_mention,https://www.investor.nexteraenergy.com/,"Power demand, renewable policy, grid, and data-center energy watch."
 VRT,Vertiv,policy_capital,mentioned,18,2,2026-04-20,public_mention,https://investors.vertiv.com/,"Data-center power, cooling, AI infrastructure, and grid constraints watch."
 CVX,Chevron,policy_capital,mentioned,11,1,2026-04-20,public_mention,https://chevroncorp.gcs-web.com/,"Energy policy, permitting, oil/gas, and geopolitical-risk watch."
-MSTR,Strategy,named_mentioned,mentioned,11,1,2026-03-17,public_mention,https://www.strategy.com/investor-relations,"Bitcoin treasury, crypto regulation, and capital-market sentiment watch."
-PANW,Palo Alto Networks,policy_capital,mentioned,11,1,2026-05-01,public_mention,https://investors.paloaltonetworks.com/,"Cybersecurity, federal spend, and breach-response watch."
+OKLO,Oklo,policy_capital,mentioned,11,1,2026-03-30,public_mention,https://oklo.com/investors/,"Advanced nuclear, data-center power, and DOE/NRC policy watch."
 XOM,Exxon Mobil,policy_capital,mentioned,11,1,2026-04-20,public_mention,https://corporate.exxonmobil.com/investors,"Energy policy, drilling, LNG, and geopolitical-risk watch."
 AAPL,Apple,named_mentioned,watchlist,4,0,,,https://www.apple.com/investor-relations/,"AI devices, supply-chain, tariff, antitrust, and platform-policy watch."
 AMD,Advanced Micro Devices,named_mentioned,watchlist,4,0,,,https://ir.amd.com/,AI accelerator and semiconductor export-control watch.
@@ -17,7 +19,6 @@ ENPH,Enphase Energy,policy_capital,watchlist,4,0,,,https://investor.enphase.com/
 F,Ford,policy_capital,watchlist,4,0,,,https://shareholder.ford.com/,"EV subsidy, tariff, labor, and industrial-policy watch."
 GE,GE Aerospace,policy_capital,watchlist,4,0,,,https://www.geaerospace.com/investor-relations,Aerospace procurement and export-control watch.
 GOOGL,Alphabet,named_mentioned,watchlist,4,0,,,https://abc.xyz/investor/,"AI, antitrust, cloud, search, and autonomous-driving policy watch."
-INTC,Intel,policy_capital,watchlist,4,0,,,https://www.intc.com/,"CHIPS Act, foundry, export-control, and domestic semiconductor policy watch."
 IONQ,IonQ,named_mentioned,watchlist,4,0,,,https://investors.ionq.com/,Quantum computing and government research funding watch.
 JPM,JPMorgan Chase,named_mentioned,watchlist,4,0,,,https://www.jpmorganchase.com/ir,"Bank regulation, rates, credit, and market-structure watch."
 LMT,Lockheed Martin,policy_capital,watchlist,4,0,,,https://investors.lockheedmartin.com/,"Defense procurement, missile defense, and geopolitics watch."
@@ -26,7 +27,6 @@ MSFT,Microsoft,named_mentioned,watchlist,4,0,,,https://www.microsoft.com/en-us/I
 MU,Micron Technology,policy_capital,watchlist,4,0,,,https://investors.micron.com/,"Memory, HBM, export-control, and domestic semiconductor policy watch."
 NOC,Northrop Grumman,policy_capital,watchlist,4,0,,,https://investor.northropgrumman.com/,"Defense procurement, drone/space, and geopolitical-risk watch."
 NVDA,NVIDIA,policy_capital,watchlist,4,0,,,https://investor.nvidia.com/,"AI accelerator, export-control, data-center, and sovereign AI policy watch."
-OKLO,Oklo,policy_capital,watchlist,4,0,,,https://oklo.com/investors/,"Advanced nuclear, data-center power, and DOE/NRC policy watch."
 ORCL,Oracle,named_mentioned,watchlist,4,0,,,https://investor.oracle.com/,"Cloud infrastructure, sovereign cloud, and AI data-center watch."
 PLTR,Palantir,policy_capital,watchlist,4,0,,,https://investors.palantir.com/,"Defense AI, government procurement, and public-sector software watch."
 QCOM,Qualcomm,named_mentioned,watchlist,4,0,,,https://investor.qualcomm.com/,"Mobile AI, China exposure, export-control, and auto-chip watch."
