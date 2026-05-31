@@ -1,6 +1,6 @@
 {
-  "failed_feed_count": 1,
-  "feed_count": 6,
+  "failed_feed_count": 0,
+  "feed_count": 5,
   "feeds": [
     {
       "error": "",
@@ -24,13 +24,6 @@
       "ok": true
     },
     {
-      "error": "HTTPError: HTTP Error 404: Not Found",
-      "feed_id": "treasury-press-releases",
-      "feed_url": "https://home.treasury.gov/rss/press-releases.xml",
-      "item_count": 0,
-      "ok": false
-    },
-    {
       "error": "",
       "feed_id": "federal-reserve-press-releases",
       "feed_url": "https://www.federalreserve.gov/feeds/press_all.xml",
@@ -45,7 +38,7 @@
       "ok": true
     }
   ],
-  "generated_at": "2026-05-31T06:08:11Z",
+  "generated_at": "2026-05-31T06:14:28Z",
   "item_count": 115,
   "successful_feed_count": 5
 }
