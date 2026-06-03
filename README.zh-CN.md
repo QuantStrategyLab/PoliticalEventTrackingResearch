@@ -1,153 +1,64 @@
 # PoliticalEventTrackingResearch
 
+[English README](README.md)
+
 > ⚠️ 投资有风险，不构成投资建议，仅供学习交流用途。
 
+## 这个项目做什么
 
-## English summary
+PoliticalEventTrackingResearch 是 QuantStrategyLab 体系中的**研究证据流水线**。从公开来源和 RSS 证据追踪政治与政策事件，为美股研究提供上下文。
 
-- Full English version: [`README.md`](README.md). This summary keeps an English entry point in the Chinese file.
-- Purpose: this document covers `PoliticalEventTrackingResearch` for `PoliticalEventTrackingResearch`.
-- Main topics: `仓库定位`, `当前状态`, `本地验证`, `Live pipeline 说明`, `研究判断`.
-- Read the boundaries, inputs, outputs, and permission requirements before running commands, CI jobs, dry-runs, releases, or runtime switches.
-- For live trading, secrets, Cloud Run, exchange, or broker API changes, validate in test or dry-run mode first and do not change production only from examples.
-- If this summary differs from the detailed Chinese body, follow the concrete commands, configuration keys, and constraints in the body.
+## 适合谁使用
 
-[English](README.md) | [简体中文](README.zh-CN.md)
-
-QuantStrategyLab 的确定性研究仓库，用来验证“公开持仓/交易披露 + 官方讲话/公开材料 + 政策资金事件”能否形成可追踪的美股事件线索。
-
-## 仓库定位
-
-这是研究证据仓库，不是 AI 仓库，也不是交易执行仓库。
-
-它负责：
-
-- 把公开披露、官方讲话、政策资金、发行人公告、财经媒体 lead、市场反应事件整理成统一 CSV 结构
-- 从观察池和事件时间线生成候选追踪表
-- 用本地日线收盘价做轻量事件研究
-- 保留来源链接、置信度和人工复核入口
-
-本次稳定发布版先不包含：
-
-- X / Twitter 采集
-- Truth Social 采集
-- Longbridge 社区、用户主页、关注列表采集
-- 登录态页面抓取或 Cookie 型采集器
-
-它不负责：
-
-- 券商 API、下单、账户同步
-- Telegram 或实盘通知
-- 受版权限制的行情数据分发
-- 对利益冲突作法律结论
-- AI 生成的长期影子信号；这类产物继续归 `ResearchSignalContextPipelines`
-- 直接把信号推广到实盘策略
+- 希望阅读、复现或扩展 QuantStrategyLab 相关模块的工程师和研究人员。
+- 在阅读详细 runbook 或 workflow 前，需要先理解项目入口的运维人员。
+- 在启用自动化前，需要确认项目职责、安全边界和证据要求的 reviewer。
 
 ## 当前状态
 
-当前提交的 `examples/` 数据是完全合成的 schema fixture，只用于跑通工具链，不是投资证据，也不是从任何文章抽取出来的样本。
+只用于研究；不包含 AI 交易代理，也不执行订单。
 
-事件类型：
+## 仓库结构
 
-- `disclosure_buy`：公开财务披露或交易披露中的买入
-- `public_mention`：官方讲话、发行人声明或财经媒体 lead 中的公开点名
-- `policy_capital`：政府入股、采购、产业政策资金支持
-- `market_reaction`：财报、合同、分析师评级或价格反应标记
+- `src/`：主要库代码和运行时代码。
+- `tests/`：单元测试和契约测试。
+- `docs/`：详细设计说明、运行手册和证据文档。
+- `.github/workflows/`：CI、定时任务和部署 workflow。
+- `scripts/`：运维脚本和本地辅助工具。
 
-## 本地验证
+## 快速开始
 
-生成合成示例追踪表：
-
-```bash
-python scripts/build_tracker.py \
-  --watchlist examples/political_watchlist.example.csv \
-  --events examples/political_events.example.csv \
-  --output data/output/political_tracker.example.csv
-```
-
-把官方来源、发行人公告和财经媒体线索归一化为事件 schema：
+从全新 clone 开始：
 
 ```bash
-python scripts/import_source_events.py \
-  --input examples/official_records.example.csv \
-  --output data/output/official_events.example.csv
-```
-
-从官方讲话 / RSS / 财经媒体导出的原始文本 CSV 抽取 mention 事件：
-
-```bash
-python scripts/extract_source_mentions.py \
-  --raw-items examples/source_items.example.csv \
-  --aliases examples/symbol_aliases.example.csv \
-  --output data/output/source_events.example.csv
-```
-
-把 RSS/Atom 拉取为同一个原始文本 schema：
-
-```bash
-python scripts/fetch_rss_sources.py \
-  --feeds examples/rss_feeds.example.csv \
-  --output data/output/rss_source_items.example.csv \
-  --max-items-per-feed 10
-```
-
-`.github/workflows/rss_source_pipeline.yml` 会拉取配置的 RSS/Atom，抽取 mention，生成 tracker，并上传为 artifact。定时运行时还会把公开 live CSV 提交回 `data/live/`：
-
-```text
-data/live/source_items.csv
-data/live/source_events.csv
-data/live/political_events.csv
-data/live/source_tracker.csv
-data/live/source_fetch_status.json
-data/live/source_manifest.json
-```
-
-其中 `data/live/political_events.csv` 是 `QuantAdvisorResearch` 读取的稳定事件输入。本仓库仍然只发布来源证据，不生成投资建议。
-
-`.github/workflows/source_event_pipeline.yml` 可处理人工提供的 `source_items.csv`。定时运行会在 RSS pipeline 之后使用 `data/live/source_items.csv`，刷新 `data/live/source_events.csv`、`data/live/political_events.csv` 和 `data/live/source_tracker.csv`。
-
-用合成价格样本跑事件研究：
-
-```bash
-python scripts/run_event_study.py \
-  --events examples/political_events.example.csv \
-  --prices examples/price_history.example.csv \
-  --windows 1,2 \
-  --output data/output/event_study.example.csv
-```
-
-运行测试：
-
-```bash
+python -m pip install -e .
 python -m pytest -q
 ```
 
-## Live pipeline 说明
+如果命令需要凭据，请先阅读相关 workflow 或 runbook，并把密钥配置在 Git 之外。
 
-RSS fetcher 会把每个源的成功/失败写入 `data/live/source_fetch_status.json`，并在 `data/live/source_manifest.json` 保留 live CSV 的 hash、行数和数据质量摘要。manifest 会记录 feed 健康度、覆盖 symbol、置信度分布和事件类型分布。单个源被屏蔽或临时不可用时，不应阻断其他官方源刷新。
+## 部署和运行
 
-如果 RSS workflow 能拉到 `source_items.csv`，但 `source_events.csv` 为空，通常不是新闻没跑，而是确定性 alias 覆盖不足：很多政策文件只写“grid infrastructure”“HBM”“foundry”“AI server”“crypto assets”这类主题词，不直接写公司名。后续补 alias 要保持克制、可审计，避免把所有宽泛政策新闻都误映射成公司事件。
+使用配置好的来源列表运行采集流水线，检查 source_items 和 source_events 后，仅发布给下游研究使用。
 
-本机 macOS Python 也可能因为本地 CA 证书问题导致 HTTPS RSS 拉取失败；GitHub-hosted runner 使用正常 CA bundle。本地排查时可以先修 Python 证书，也可以直接从 GitHub Actions 下载 `source_items.csv` artifact 后验证抽取链路。
+建议先手工运行或 dry-run。只有在日志、产物、权限和回滚步骤都检查过之后，才启用定时任务或 live 执行。
 
-## 研究判断
+## 策略表现与证据边界
 
-这类“追踪效果”可以拆成三个可验证问题：
+这不是交易策略仓库。质量主要看来源可追溯、事件归一化、时效性和可审阅性。
 
-1. **能不能第一时间知道谁进入观察池**：需要结构化公开披露和政策/持仓来源。
-2. **能不能捕捉公开点名**：需要按时间记录官方讲话、公告、新闻稿和媒体 lead。
-3. **点名后是否有可交易的统计优势**：需要事件研究和样本外验证，不能只看少数轶事案例。
+README 不应该承诺固定收益或过期指标。实际使用前，请重新运行对应测试、回测或流水线任务。
 
-本仓库先解决前两步的数据结构和复盘框架；第三步需要更多点位和真实行情输入。后续如果需要 LLM 处理长文本，只能作为可替换的抽取工具，不能把模型判断结果写成核心信号合同。
+## 安全注意事项
 
-免费数据源配置见 [docs/free_source_setup.zh-CN.md](docs/free_source_setup.zh-CN.md)。
+- 不要把 API key、券商凭据、OAuth token、Cookie 或账户标识提交到 Git。
+- 新策略或平台变更在 live 前必须先跑 dry-run 或 paper 流程。
+- 启用定时任务前，需要人工检查生成的订单、产物和日志。
 
-## 短线事件层边界
+## 参与贡献
 
-本仓库是短线事实事件输入层，服务 Advisor 的 `1-10个交易日` 事件催化判断。它只输出来源、日期、事件类型和置信度，不直接输出短线买卖推荐；最终短/中/长线推荐仍由 `QuantAdvisorResearch` 合成。
+请保持改动小、可复现，并用最小必要测试覆盖。涉及策略的改动，需要附上验证行为的证据产物或命令。
 
-## 跨板块来源原则
+## 许可证
 
-稳定源不局限于 AI 板块。半导体、数据中心电力、网络安全、国防、能源、金融、医疗、消费平台、工业和 EV/汽车等方向，只要有 SEC、官方政策、发行人公告、政府采购或其他一手来源，都可以进入同一套 `source_items.csv` / `source_events.csv` 结构。
-
-主题归属和长期语义判断由 `ResearchSignalContextPipelines` 维护；本仓库只负责点时事实证据，避免因为短期热点临时改变采集边界。
+如仓库包含 [LICENSE](LICENSE)，请以该文件为准。
