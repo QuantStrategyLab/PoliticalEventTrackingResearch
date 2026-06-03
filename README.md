@@ -2,63 +2,44 @@
 
 [Chinese README](README.zh-CN.md)
 
-> ⚠️ Investing involves risk. This project does not provide investment advice and is for educational and research purposes only.
+> Investing involves risk. This project does not provide investment advice and is for education, research, and engineering review only.
 
-## What this project does
+## What this repository is
 
-PoliticalEventTrackingResearch is a **Research evidence pipeline** in the QuantStrategyLab ecosystem. It tracks public political and policy events from source/RSS evidence for US equity research context.
+PoliticalEventTrackingResearch is a QuantStrategyLab public event evidence pipeline. It tracks public political and policy event evidence for US equity research context.
 
-## Who this is for
+It produces research, audit, or orchestration artifacts. It should not submit broker orders or mutate live allocations by itself.
 
-- Engineers and researchers who want to inspect, reproduce, or extend this part of the QuantStrategyLab stack.
-- Operators who need a clear entry point before reading the deeper runbooks or workflow files.
-- Reviewers who need to understand the repository purpose, safety boundary, and evidence requirements before enabling automation.
+## Output boundary
 
-## Current status
-
-Research-only pipeline; no AI trading agent and no order execution.
+- Treat generated reports as evidence or review material, not automatic trading instructions.
+- Keep source traceability and artifact timestamps visible.
+- Require human review before using outputs in downstream strategy or platform changes.
+- Keep credentials, private data, and external service tokens out of Git and logs.
 
 ## Repository layout
 
-- `src/`: main library and runtime code.
-- `tests/`: unit and contract tests.
-- `docs/`: detailed design notes, runbooks, and evidence docs.
-- `.github/workflows/`: CI, scheduled jobs, and deployment workflows.
+- `src/`: library and runtime code.
+- `tests/`: unit, contract, and regression tests.
+- `docs/`: runbooks, design notes, evidence, and integration contracts.
+- `.github/workflows/`: CI, scheduled jobs, release, or deployment workflows.
 - `scripts/`: operator scripts and local helpers.
+- `config/`: runtime or pipeline configuration.
 
 ## Quick start
-
-From a fresh clone:
 
 ```bash
 python -m pip install -e .
 python -m pytest -q
 ```
 
-If a command requires credentials, run it only after reading the relevant workflow or runbook and configuring secrets outside Git.
+## Useful docs
 
-## Deployment and operation
-
-Run the collection pipeline with configured source lists, review source_items and source_events, then publish artifacts for downstream research only.
-
-Prefer manual or dry-run execution first. Enable schedules or live execution only after logs, artifacts, permissions, and rollback steps are reviewed.
-
-## Strategy performance and evidence
-
-Not a trading strategy repository. Evidence quality is measured by source traceability, event normalization, freshness, and reviewability.
-
-README files are intentionally not a source of dated performance promises. Re-run the relevant tests, backtests, or pipeline jobs before relying on any result.
-
-## Safety notes
-
-- Never commit API keys, broker credentials, OAuth tokens, cookies, or account identifiers.
-- Run new strategies and platform changes in dry-run or paper mode before any live execution.
-- Review generated orders, artifacts, and logs manually before enabling schedules.
-
-## Contributing
-
-Keep changes small, reproducible, and covered by the narrowest useful tests. For strategy-facing changes, include the evidence artifact or command used to validate behavior.
+- [`docs/free_source_setup.zh-CN.md`](docs/free_source_setup.zh-CN.md)
+- [`docs/research_plan.zh-CN.md`](docs/research_plan.zh-CN.md)
+- [`docs/source_ingestion_options.md`](docs/source_ingestion_options.md)
+- [`docs/source_registry.md`](docs/source_registry.md)
 
 ## License
 
-See [LICENSE](LICENSE) if present in this repository.
+See [LICENSE](LICENSE).
