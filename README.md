@@ -1,5 +1,36 @@
 # PoliticalEventTrackingResearch
 
+<!-- qsl-doc-overview:start -->
+
+> ⚠️ 投资有风险，不构成投资建议，仅供学习交流用途。
+> ⚠️ Investing involves risk. This project does not provide investment advice and is for educational and research purposes only.
+
+## Open-source overview / 开源项目入口
+
+| Item | Description |
+| --- | --- |
+| Project type | research pipeline |
+| What it does | Tracks public political/policy event evidence and transforms it into auditable source items/events for research. |
+| 中文说明 | 公开政治/政策事件研究管线，产出可审计 source_items/source_events，不做 AI 决策或交易执行。 |
+| Current status | Research-only evidence pipeline. |
+
+### Quick start
+
+- `python -m pip install -e '.[test]'`
+- `python -m pytest -q`
+
+### Deploy / operate safely
+
+Run source collection and publication workflows only after checking rate limits, source terms and output paths.
+
+### Strategy performance / evidence boundary
+
+The research plan covers post-event 1/5/20 trading-day returns and benchmark-relative analysis; see `docs/research_plan.zh-CN.md`.
+
+> Detailed runbooks, migration notes, workflow internals, and historical decisions are kept below. Start with this overview before using the lower-level operational sections.
+
+<!-- qsl-doc-overview:end -->
+
 > ⚠️ 投资有风险，不构成投资建议，仅供学习交流用途。
 
 
