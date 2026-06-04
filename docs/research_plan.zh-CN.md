@@ -1,14 +1,5 @@
 # 政治事件追踪研究计划
 
-
-## English summary
-
-- Purpose: this document covers `政治事件追踪研究计划` for `PoliticalEventTrackingResearch`.
-- Main topics: `目标`, `研究单元`, `事件分层`, `数据源优先级`, `原始文本抽取入口`.
-- Read the boundaries, inputs, outputs, and permission requirements before running commands, CI jobs, dry-runs, releases, or runtime switches.
-- For live trading, secrets, Cloud Run, exchange, or broker API changes, validate in test or dry-run mode first and do not change production only from examples.
-- If this summary differs from the detailed Chinese body, follow the concrete commands, configuration keys, and constraints in the body.
-
 ## 目标
 
 验证公开人物持仓披露、官方公开点名、政策资金事件与美股短中期收益之间是否存在可复现关系。
