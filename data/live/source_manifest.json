@@ -3,28 +3,28 @@
   "artifacts": {
     "political_events.csv": {
       "path": "data/live/political_events.csv",
-      "row_count": 14,
-      "sha256": "0e35d04377bf6e1588bd5e194082677233be78c43d21260fffb6255b11db8970"
+      "row_count": 13,
+      "sha256": "2d18359a1c5f55cea325ef40f4a1bdde7d43c6339b8e4676b6f737dc8fb1f314"
     },
     "source_events.csv": {
       "path": "data/live/source_events.csv",
-      "row_count": 14,
-      "sha256": "0e35d04377bf6e1588bd5e194082677233be78c43d21260fffb6255b11db8970"
+      "row_count": 13,
+      "sha256": "2d18359a1c5f55cea325ef40f4a1bdde7d43c6339b8e4676b6f737dc8fb1f314"
     },
     "source_fetch_status.json": {
       "path": "data/live/source_fetch_status.json",
       "row_count": null,
-      "sha256": "b2aaefad8d05691dba798072096882f1156ce6fd40a2a026d520281916c2172e"
+      "sha256": "673c3925039be7ea5607939e137c879d66cdc87ce5c5565c767a390164532261"
     },
     "source_items.csv": {
       "path": "data/live/source_items.csv",
       "row_count": 205,
-      "sha256": "cec3cca0392505db107506cba15e07ad8bc2d83e10c206b20f34ecb76fed9199"
+      "sha256": "bc44d9d28755c46bd180eb4a9d3f04fde69601c0977b65ff760a130ab955be17"
     },
     "source_tracker.csv": {
       "path": "data/live/source_tracker.csv",
       "row_count": 39,
-      "sha256": "984b622e9f67a4743a73ed23a0b384780408d3226ae70ea61727fa53ed9846a3"
+      "sha256": "dc172784777404e49f0d5fb01dbc942e533a50fe690d6286173e9fedc9e39f80"
     }
   },
   "data_quality": {
@@ -36,12 +36,12 @@
     },
     "source_events": {
       "confidence_counts": {
-        "high": 14
+        "high": 13
       },
       "event_type_counts": {
         "policy_capital": 1,
         "procurement": 1,
-        "public_mention": 12
+        "public_mention": 11
       },
       "symbol_count": 5,
       "symbols": [
@@ -53,6 +53,6 @@
       ]
     }
   },
-  "generated_at": "2026-06-06T14:19:27.814756+00:00",
+  "generated_at": "2026-06-13T14:24:19.905493+00:00",
   "manifest_type": "political_event_live_outputs"
 }
