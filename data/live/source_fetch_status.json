@@ -1,5 +1,5 @@
 {
-  "failed_feed_count": 0,
+  "failed_feed_count": 1,
   "feed_count": 9,
   "feeds": [
     {
@@ -59,14 +59,14 @@
       "ok": true
     },
     {
-      "error": "",
+      "error": "HTTPError: HTTP Error 403: Forbidden",
       "feed_id": "cisa-news",
       "feed_url": "https://www.cisa.gov/news.xml",
-      "item_count": 10,
-      "ok": true
+      "item_count": 0,
+      "ok": false
     }
   ],
-  "generated_at": "2026-06-13T14:24:19Z",
-  "item_count": 205,
-  "successful_feed_count": 9
+  "generated_at": "2026-06-20T14:28:54Z",
+  "item_count": 195,
+  "successful_feed_count": 8
 }
