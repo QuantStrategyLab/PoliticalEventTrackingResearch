@@ -1,5 +1,7 @@
 # 免费数据源配置
 
+[English](free_source_setup.md)
+
 ## 已落地文件
 
 - `config/free_rss_feeds.csv`：无需账号的官方 RSS 源。
