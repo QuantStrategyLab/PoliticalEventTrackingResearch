@@ -1,0 +1,8 @@
+[qsl]
+repo = "PoliticalEventTrackingResearch"
+tier = "research"
+ring = 2
+allow_legacy = false
+
+[qsl.compat]
+bundle = "2026.07.0"
