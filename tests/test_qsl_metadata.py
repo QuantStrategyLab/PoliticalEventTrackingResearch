@@ -16,4 +16,4 @@ def test_qsl_metadata_has_compat_bundle() -> None:
     assert qsl["ring"] == 2
     assert qsl.get("repo") == "PoliticalEventTrackingResearch"
     compat = qsl["compat"]
-    assert compat["bundle"] == "2026.07.0"
+    assert compat["bundle"] == "2026.07.1"
