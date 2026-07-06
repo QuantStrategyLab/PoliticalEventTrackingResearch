@@ -1,5 +1,14 @@
 # PoliticalEventTrackingResearch
 
+
+## QSL architecture role
+
+- **Layer**: `research`.
+- **Responsibility**: public political and policy event evidence pipeline.
+- **Owns**: source items, source events, traceable research evidence.
+- **Consumes**: public RSS/web sources and downstream research consumers.
+- **Must not**: produce automatic trading instructions or mutate allocations.
+
 [Chinese README](README.zh-CN.md)
 
 > Investing involves risk. This project does not provide investment advice and is for education, research, and engineering review only.
