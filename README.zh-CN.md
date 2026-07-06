@@ -1,5 +1,14 @@
 # PoliticalEventTrackingResearch
 
+
+## QSL 架构角色
+
+- **层级**：`研究/证据`。
+- **职责**：公开政治/政策事件证据流水线。
+- **事实源/归属**：source items、source events、可追溯研究证据。
+- **消费对象**：公开 RSS/web sources 和下游研究消费者。
+- **禁止事项**：生成自动交易指令或修改 allocations。
+
 [English README](README.md)
 
 > 投资有风险。本项目不构成投资建议，仅用于学习、研究和工程审阅。
