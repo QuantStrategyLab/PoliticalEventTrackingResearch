@@ -1,7 +1,7 @@
 [qsl]
 repo = "PoliticalEventTrackingResearch"
-tier = "research"
-ring = 2
+tier = "pipeline"
+upgrade_ring = "ring_c"
 allow_legacy = false
 
 [qsl.compat]
