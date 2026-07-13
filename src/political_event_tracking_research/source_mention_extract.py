@@ -124,13 +124,16 @@ def _is_generic_alias(alias_record: MentionAlias, alias: str) -> bool:
     return normalized.casefold() in GENERIC_ALIAS_DENYLIST
 
 
-def match_evidence(text: str, alias_record: MentionAlias) -> tuple[str, str] | None:
+def match_evidence(text: str, alias_record: MentionAlias, source_type: str = "") -> tuple[str, str] | None:
     normalized_text = normalize_match_text(text)
     matches: list[tuple[str, str]] = []
     for alias in alias_record.aliases:
         if not alias_pattern(alias).search(normalized_text):
             continue
-        if _is_generic_alias(alias_record, alias):
+        is_canonical_name = bool(alias_record.name) and alias.casefold() == alias_record.name.casefold()
+        if is_canonical_name and source_type == "issuer_release":
+            matches.append(("issuer", normalize_match_text(alias)))
+        elif _is_generic_alias(alias_record, alias):
             matches.append(("industry_context", normalize_match_text(alias)))
             continue
         relationship = "direct_beneficiary" if re.search(
@@ -190,7 +193,7 @@ def extract_source_records(raw_items_path: str | Path, aliases_path: str | Path,
     records: list[OfficialRecord] = []
     for item in raw_items:
         for alias_record in aliases:
-            evidence = match_evidence(item.text, alias_record)
+            evidence = match_evidence(item.text, alias_record, item.source_type)
             if evidence is None:
                 continue
             entity_match_type, matched_text = evidence

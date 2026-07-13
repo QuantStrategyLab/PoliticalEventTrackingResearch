@@ -18,6 +18,11 @@ evidence; industry vocabulary is retained for auditability but is not scored as
 an issuer event. Rows without a verifiable entity match are not emitted by the
 live extractor. Legacy imported rows default to `unverified` and therefore fail
 closed in downstream company-event scoring.
+
+Historical event-study compatibility is opt-in only. Use
+`--historical-compatibility --compatibility-reason "..."` for a pre-schema CSV.
+Rows remain `unverified`; output records include `compatibility_used`,
+`compatibility_reason`, and `legacy_provenance`.
 - `data/live/political_events.csv`: stable Advisor input, refreshed by RSS/source pipeline or maintained after manual review.
 - `data/live/source_tracker.csv`: merged watchlist and event tracker.
 

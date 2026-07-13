@@ -21,6 +21,9 @@ class Event:
     entity_match_type: str = "unverified"
     match_evidence: str = ""
     relationship_type: str = "unverified"
+    legacy_compatibility: bool = False
+    compatibility_reason: str = ""
+    legacy_provenance: str = ""
 
 
 @dataclass(frozen=True)
@@ -38,6 +41,9 @@ class EventReturn:
     benchmark_symbol: str
     benchmark_return_pct: float | None
     abnormal_return_pct: float | None
+    compatibility_used: bool = False
+    compatibility_reason: str = ""
+    legacy_provenance: str = ""
 
     def to_row(self) -> dict[str, object]:
         return {
@@ -54,6 +60,9 @@ class EventReturn:
             "benchmark_symbol": self.benchmark_symbol,
             "benchmark_return_pct": "" if self.benchmark_return_pct is None else f"{self.benchmark_return_pct:.6f}",
             "abnormal_return_pct": "" if self.abnormal_return_pct is None else f"{self.abnormal_return_pct:.6f}",
+            "compatibility_used": str(self.compatibility_used).lower(),
+            "compatibility_reason": self.compatibility_reason,
+            "legacy_provenance": self.legacy_provenance,
         }
 
 
@@ -65,9 +74,14 @@ def parse_date(value: str) -> date:
     return date.fromisoformat(value.strip())
 
 
-def load_events(path: str | Path) -> list[Event]:
+def load_events(path: str | Path, historical_compatibility: bool = False, compatibility_reason: str = "") -> list[Event]:
     events: list[Event] = []
-    for row in read_csv_rows(path):
+    rows = read_csv_rows(path)
+    legacy_schema = bool(rows) and "relationship_type" not in rows[0]
+    if historical_compatibility and not compatibility_reason.strip():
+        raise ValueError("compatibility_reason is required for historical compatibility")
+    for row in rows:
+        legacy_compatibility = historical_compatibility and legacy_schema
         events.append(
             Event(
                 event_id=row["event_id"],
@@ -81,6 +95,9 @@ def load_events(path: str | Path) -> list[Event]:
                 entity_match_type=row.get("entity_match_type", "unverified") or "unverified",
                 match_evidence=row.get("match_evidence", ""),
                 relationship_type=row.get("relationship_type", "unverified") or "unverified",
+                legacy_compatibility=legacy_compatibility,
+                compatibility_reason=compatibility_reason if legacy_compatibility else "",
+                legacy_provenance=str(path) if legacy_compatibility else "",
             )
         )
     return events
@@ -130,12 +147,14 @@ def compute_event_returns(
     prices: PriceTable,
     windows: tuple[int, ...] = (1, 5, 20),
     benchmark_symbol: str = "SPY",
+    historical_compatibility: bool = False,
 ) -> list[EventReturn]:
     results: list[EventReturn] = []
     benchmark_symbol = benchmark_symbol.upper()
 
     for event in events:
-        if event.relationship_type not in VERIFIED_RELATIONSHIPS:
+        use_legacy = historical_compatibility and event.legacy_compatibility
+        if event.relationship_type not in VERIFIED_RELATIONSHIPS and not use_legacy:
             continue
         symbol_dates = sorted_dates(prices, event.symbol)
         base_date = first_trading_date_on_or_after(symbol_dates, event.event_date)
@@ -175,6 +194,9 @@ def compute_event_returns(
                     benchmark_symbol=benchmark_symbol,
                     benchmark_return_pct=benchmark_return,
                     abnormal_return_pct=abnormal_return,
+                    compatibility_used=use_legacy,
+                    compatibility_reason=event.compatibility_reason if use_legacy else "",
+                    legacy_provenance=event.legacy_provenance if use_legacy else "",
                 )
             )
 
@@ -196,10 +218,18 @@ def run_event_study(
     output_path: str | Path,
     windows: tuple[int, ...] = (1, 5, 20),
     benchmark_symbol: str = "SPY",
+    historical_compatibility: bool = False,
+    compatibility_reason: str = "",
 ) -> list[EventReturn]:
-    events = load_events(events_path)
+    events = load_events(events_path, historical_compatibility=historical_compatibility, compatibility_reason=compatibility_reason)
     prices = load_prices(prices_path)
-    results = compute_event_returns(events, prices, windows=windows, benchmark_symbol=benchmark_symbol)
+    results = compute_event_returns(
+        events,
+        prices,
+        windows=windows,
+        benchmark_symbol=benchmark_symbol,
+        historical_compatibility=historical_compatibility,
+    )
     write_csv_rows(
         output_path,
         [
@@ -216,6 +246,9 @@ def run_event_study(
             "benchmark_symbol",
             "benchmark_return_pct",
             "abnormal_return_pct",
+            "compatibility_used",
+            "compatibility_reason",
+            "legacy_provenance",
         ],
         [result.to_row() for result in results],
     )
@@ -229,6 +262,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", required=True, help="Output CSV path.")
     parser.add_argument("--windows", default="1,5,20", help="Comma-separated trading-day offsets.")
     parser.add_argument("--benchmark", default="SPY", help="Benchmark symbol for abnormal returns.")
+    parser.add_argument("--historical-compatibility", action="store_true", help="Explicitly analyze legacy event CSVs.")
+    parser.add_argument("--compatibility-reason", default="", help="Required audit reason for legacy compatibility.")
     return parser
 
 
@@ -240,6 +275,8 @@ def main(argv: list[str] | None = None) -> None:
         output_path=args.output,
         windows=parse_windows(args.windows),
         benchmark_symbol=args.benchmark,
+        historical_compatibility=args.historical_compatibility,
+        compatibility_reason=args.compatibility_reason,
     )
 
 

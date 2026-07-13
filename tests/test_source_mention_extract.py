@@ -100,6 +100,26 @@ def test_explicit_issuer_match_is_company_level(tmp_path: Path) -> None:
     assert rows[0]["match_evidence"] == "Coinbase"
 
 
+def test_canonical_name_on_trusted_issuer_release_beats_generic_denylist(tmp_path: Path) -> None:
+    raw_items = tmp_path / "source_items.csv"
+    raw_items.write_text(
+        "item_id,published_at,source_type,source_url,author,text\n"
+        "issuer-strategy,2026-04-01T00:00:00Z,issuer_release,https://example.com/strategy,Strategy,"
+        'Strategy announced a new product.\n'
+        "policy-strategy,2026-04-01T00:00:00Z,government_policy,https://www.nist.gov/strategy,NIST,"
+        'Strategy guidance was published.\n',
+        encoding="utf-8",
+    )
+    aliases = tmp_path / "aliases.csv"
+    aliases.write_text("symbol,name,aliases\nMSTR,Strategy,Strategy|MSTR\n", encoding="utf-8")
+
+    rows = extract_source_records(raw_items, aliases, tmp_path / "events.csv")
+    by_id = {row["event_id"]: row for row in rows}
+
+    assert by_id["official-issuer-release-issuer-strategy-mstr"]["entity_match_type"] == "issuer"
+    assert by_id["official-government-policy-policy-strategy-mstr"]["entity_match_type"] == "industry_context"
+
+
 def test_proper_noun_alternate_alias_remains_company_level(tmp_path: Path) -> None:
     raw_items = tmp_path / "source_items.csv"
     raw_items.write_text(

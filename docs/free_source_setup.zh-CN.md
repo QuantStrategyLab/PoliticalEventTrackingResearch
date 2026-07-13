@@ -16,6 +16,10 @@
 只有前两类可作为公司级证据；行业通用词会保留用于审计，但不会进入公司事件评分。
 live 抽取器不会输出无法验证实体关联的行；旧格式导入行默认为
 `unverified`，下游公司事件评分会 fail-closed。
+历史 event study 兼容模式必须显式启用并提供原因：
+`--historical-compatibility --compatibility-reason "..."`。旧行仍保持
+`unverified`，输出记录 `compatibility_used`、`compatibility_reason` 和
+`legacy_provenance`，不会自动升级为 verified。
 - `data/live/political_events.csv`：Advisor 稳定读取的真实事件输入，由 RSS/source pipeline 刷新，也可以人工核验后维护。
 - `data/live/source_tracker.csv`：观察池与事件合并后的 tracker。
 
