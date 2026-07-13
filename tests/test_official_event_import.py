@@ -28,6 +28,8 @@ def test_import_official_events_normalizes_to_event_schema(tmp_path: Path) -> No
     assert rows[-2]["event_id"] == "official-issuer-release-demo-issuer-evt3"
     assert rows[-1]["event_id"] == "official-financial-media-demo-media-evt5"
     assert rows[-1]["confidence"] == "low"
+    assert rows[0]["entity_match_type"] == "unverified"
+    assert rows[0]["relationship_type"] == "unverified"
 
 
 def test_government_records_reject_non_gov_urls() -> None:

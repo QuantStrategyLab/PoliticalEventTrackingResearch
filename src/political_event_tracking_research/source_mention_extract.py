@@ -10,6 +10,32 @@ from .event_study import parse_date
 from .official_event_import import OfficialRecord, normalize_records
 
 
+GENERIC_ALIAS_DENYLIST = frozenset(
+    {
+        "advanced nuclear",
+        "bitcoin treasury",
+        "chips act",
+        "crypto assets",
+        "cybersecurity",
+        "digital assets",
+        "energy-related infrastructure",
+        "foundry",
+        "nuclear energy",
+        "nuclear reactor",
+        "semiconductor manufacturing",
+        "strategy",
+        "tokenization",
+    }
+)
+
+RELATIONSHIP_PRIORITY = {
+    "unverified": 0,
+    "industry_context": 1,
+    "issuer": 2,
+    "direct_beneficiary": 3,
+}
+
+
 @dataclass(frozen=True)
 class RawSourceItem:
     item_id: str
@@ -24,6 +50,7 @@ class RawSourceItem:
 class MentionAlias:
     symbol: str
     aliases: tuple[str, ...]
+    name: str = ""
 
 
 def load_raw_items(path: str | Path) -> list[RawSourceItem]:
@@ -51,10 +78,13 @@ def load_aliases(path: str | Path) -> list[MentionAlias]:
     records: list[MentionAlias] = []
     for row in read_csv_rows(path):
         symbol = row["symbol"].upper()
+        name = row.get("name", "").strip()
         aliases = split_aliases(row.get("aliases", ""))
+        if name and name.casefold() not in {alias.casefold() for alias in aliases}:
+            aliases = (name, *aliases)
         if symbol not in aliases:
             aliases = (symbol, *aliases)
-        records.append(MentionAlias(symbol=symbol, aliases=aliases))
+        records.append(MentionAlias(symbol=symbol, aliases=aliases, name=name))
     return records
 
 
@@ -86,6 +116,40 @@ def match_symbols(text: str, aliases: list[MentionAlias]) -> list[str]:
         if any(alias_pattern(alias).search(normalized_text) for alias in alias_record.aliases):
             matches.append(alias_record.symbol)
     return sorted(dict.fromkeys(matches))
+
+
+def _is_generic_alias(alias_record: MentionAlias, alias: str) -> bool:
+    normalized = normalize_match_text(alias).strip()
+    if normalized.upper() == alias_record.symbol.upper():
+        return False
+    return normalized.casefold() in GENERIC_ALIAS_DENYLIST
+
+
+def match_evidence(text: str, alias_record: MentionAlias, source_type: str = "") -> tuple[str, str] | None:
+    normalized_text = normalize_match_text(text)
+    matches: list[tuple[str, str]] = []
+    for alias in alias_record.aliases:
+        normalized_alias = normalize_match_text(alias)
+        if not alias_pattern(alias).search(normalized_text):
+            continue
+        direct_pattern = re.compile(
+            rf"(?:awarded to|contract with|funding for|benefit(?:s|ed)? from)\s+"
+            rf"(?:the\s+)?{re.escape(normalized_alias)}",
+            re.IGNORECASE,
+        )
+        is_canonical_name = bool(alias_record.name) and alias.casefold() == alias_record.name.casefold()
+        if direct_pattern.search(normalized_text):
+            relationship = "direct_beneficiary"
+        elif source_type == "issuer_release" and is_canonical_name:
+            relationship = "issuer"
+        elif _is_generic_alias(alias_record, alias):
+            relationship = "industry_context"
+        else:
+            relationship = "issuer"
+        matches.append((relationship, normalized_alias))
+    if not matches:
+        return None
+    return max(matches, key=lambda match: (RELATIONSHIP_PRIORITY[match[0]], match[1].casefold()))
 
 
 def infer_event_type(item: RawSourceItem) -> str:
@@ -133,24 +197,42 @@ def extract_source_records(raw_items_path: str | Path, aliases_path: str | Path,
     aliases = load_aliases(aliases_path)
     records: list[OfficialRecord] = []
     for item in raw_items:
-        symbols = match_symbols(item.text, aliases)
-        for symbol in symbols:
+        for alias_record in aliases:
+            evidence = match_evidence(item.text, alias_record, item.source_type)
+            if evidence is None:
+                continue
+            entity_match_type, matched_text = evidence
             records.append(
                 OfficialRecord(
-                    record_id=f"{item.item_id}-{symbol.lower()}",
+                    record_id=f"{item.item_id}-{alias_record.symbol.lower()}",
                     record_date=item_date(item),
-                    symbol=symbol,
+                    symbol=alias_record.symbol,
                     source_type=item.source_type,
                     event_type=infer_event_type(item),
                     direction=infer_direction(item.text),
                     source_url=item.source_url,
                     summary=f"{item.author}: {item.text}".strip(": "),
+                    entity_match_type=entity_match_type,
+                    match_evidence=matched_text,
+                    relationship_type=entity_match_type,
                 )
             )
     rows = normalize_records(records)
     write_csv_rows(
         output_path,
-        ["event_id", "event_date", "symbol", "event_type", "direction", "confidence", "source_url", "notes"],
+        [
+            "event_id",
+            "event_date",
+            "symbol",
+            "event_type",
+            "direction",
+            "confidence",
+            "source_url",
+            "notes",
+            "entity_match_type",
+            "match_evidence",
+            "relationship_type",
+        ],
         rows,
     )
     return rows
