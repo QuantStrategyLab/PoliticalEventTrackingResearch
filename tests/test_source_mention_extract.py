@@ -131,6 +131,42 @@ def test_direct_beneficiary_overrides_generic_alias(tmp_path: Path) -> None:
     assert rows[0]["entity_match_type"] == "direct_beneficiary"
 
 
+def test_canonical_name_wins_same_strength_alias_tie(tmp_path: Path) -> None:
+    raw_items = tmp_path / "source_items.csv"
+    raw_items.write_text(
+        "item_id,published_at,source_type,source_url,author,text\n"
+        "issuer,2026-04-01T00:00:00Z,issuer_release,https://example.com/release,Issuer,"
+        'Palo Alto Networks (PANW) announced a new product.\n',
+        encoding="utf-8",
+    )
+    aliases = tmp_path / "aliases.csv"
+    aliases.write_text("symbol,name,aliases\nPANW,Palo Alto Networks,Palo Alto Networks|PANW\n", encoding="utf-8")
+
+    rows = extract_source_records(raw_items, aliases, tmp_path / "events.csv")
+
+    assert rows[0]["match_evidence"] == "Palo Alto Networks"
+
+
+def test_duplicate_alias_rows_emit_one_record_per_symbol(tmp_path: Path) -> None:
+    raw_items = tmp_path / "source_items.csv"
+    raw_items.write_text(
+        "item_id,published_at,source_type,source_url,author,text\n"
+        "issuer,2026-04-01T00:00:00Z,issuer_release,https://example.com/release,Issuer,"
+        'Coinbase (COIN) announced a new product.\n',
+        encoding="utf-8",
+    )
+    aliases = tmp_path / "aliases.csv"
+    aliases.write_text(
+        "symbol,name,aliases\nCOIN,Coinbase,Coinbase|COIN\nCOIN,Coinbase,Coinbase|COIN|tokenization\n",
+        encoding="utf-8",
+    )
+
+    rows = extract_source_records(raw_items, aliases, tmp_path / "events.csv")
+
+    assert len(rows) == 1
+    assert rows[0]["symbol"] == "COIN"
+
+
 def test_known_ticker_collisions_remain_context_only(tmp_path: Path) -> None:
     raw_items = tmp_path / "source_items.csv"
     raw_items.write_text(

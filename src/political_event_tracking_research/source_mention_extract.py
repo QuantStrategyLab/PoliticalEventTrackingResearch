@@ -127,7 +127,7 @@ def _is_generic_alias(alias_record: MentionAlias, alias: str) -> bool:
 
 def match_evidence(text: str, alias_record: MentionAlias, source_type: str = "") -> tuple[str, str] | None:
     normalized_text = normalize_match_text(text)
-    matches: list[tuple[str, str]] = []
+    matches: list[tuple[str, str, bool]] = []
     for alias in alias_record.aliases:
         normalized_alias = normalize_match_text(alias)
         if not alias_pattern(alias).search(normalized_text):
@@ -146,10 +146,14 @@ def match_evidence(text: str, alias_record: MentionAlias, source_type: str = "")
             relationship = "industry_context"
         else:
             relationship = "issuer"
-        matches.append((relationship, normalized_alias))
+        matches.append((relationship, normalized_alias, is_canonical_name))
     if not matches:
         return None
-    return max(matches, key=lambda match: (RELATIONSHIP_PRIORITY[match[0]], match[1].casefold()))
+    relationship, evidence, _ = max(
+        matches,
+        key=lambda match: (RELATIONSHIP_PRIORITY[match[0]], match[2], len(match[1]), match[1].casefold()),
+    )
+    return relationship, evidence
 
 
 def infer_event_type(item: RawSourceItem) -> str:
@@ -197,26 +201,34 @@ def extract_source_records(raw_items_path: str | Path, aliases_path: str | Path,
     aliases = load_aliases(aliases_path)
     records: list[OfficialRecord] = []
     for item in raw_items:
+        best_by_symbol: dict[str, tuple[OfficialRecord, tuple[int, int, str]]] = {}
         for alias_record in aliases:
             evidence = match_evidence(item.text, alias_record, item.source_type)
             if evidence is None:
                 continue
             entity_match_type, matched_text = evidence
-            records.append(
-                OfficialRecord(
-                    record_id=f"{item.item_id}-{alias_record.symbol.lower()}",
-                    record_date=item_date(item),
-                    symbol=alias_record.symbol,
-                    source_type=item.source_type,
-                    event_type=infer_event_type(item),
-                    direction=infer_direction(item.text),
-                    source_url=item.source_url,
-                    summary=f"{item.author}: {item.text}".strip(": "),
-                    entity_match_type=entity_match_type,
-                    match_evidence=matched_text,
-                    relationship_type=entity_match_type,
-                )
+            record = OfficialRecord(
+                record_id=f"{item.item_id}-{alias_record.symbol.lower()}",
+                record_date=item_date(item),
+                symbol=alias_record.symbol,
+                source_type=item.source_type,
+                event_type=infer_event_type(item),
+                direction=infer_direction(item.text),
+                source_url=item.source_url,
+                summary=f"{item.author}: {item.text}".strip(": "),
+                entity_match_type=entity_match_type,
+                match_evidence=matched_text,
+                relationship_type=entity_match_type,
             )
+            evidence_key = (
+                RELATIONSHIP_PRIORITY[entity_match_type],
+                len(matched_text),
+                matched_text.casefold(),
+            )
+            current = best_by_symbol.get(alias_record.symbol)
+            if current is None or evidence_key > current[1]:
+                best_by_symbol[alias_record.symbol] = (record, evidence_key)
+        records.extend(record for record, _ in best_by_symbol.values())
     rows = normalize_records(records)
     write_csv_rows(
         output_path,
