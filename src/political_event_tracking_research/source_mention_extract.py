@@ -80,8 +80,6 @@ def load_aliases(path: str | Path) -> list[MentionAlias]:
         symbol = row["symbol"].upper()
         name = row.get("name", "").strip()
         aliases = split_aliases(row.get("aliases", ""))
-        if name and name.casefold() not in {alias.casefold() for alias in aliases}:
-            aliases = (name, *aliases)
         if symbol not in aliases:
             aliases = (symbol, *aliases)
         records.append(MentionAlias(symbol=symbol, aliases=aliases, name=name))
@@ -145,7 +143,7 @@ def match_evidence(text: str, alias_record: MentionAlias, source_type: str = "")
         elif _is_generic_alias(alias_record, alias):
             relationship = "industry_context"
         else:
-            relationship = "issuer"
+            relationship = "unverified"
         matches.append((relationship, normalized_alias, is_canonical_name))
     if not matches:
         return None

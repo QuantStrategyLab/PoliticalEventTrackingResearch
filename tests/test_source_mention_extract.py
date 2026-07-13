@@ -115,6 +115,43 @@ def test_canonical_name_is_trusted_only_in_issuer_release(tmp_path: Path) -> Non
     assert by_id["official-government-policy-policy-mstr"]["entity_match_type"] == "industry_context"
 
 
+def test_curation_omission_keeps_canonical_name_as_metadata_only(tmp_path: Path) -> None:
+    raw_items = tmp_path / "source_items.csv"
+    raw_items.write_text(
+        "item_id,published_at,source_type,source_url,author,text\n"
+        "issuer,2026-04-01T00:00:00Z,issuer_release,https://example.com/release,Issuer,"
+        'Palo Alto Networks announced a new product.\n',
+        encoding="utf-8",
+    )
+    aliases = tmp_path / "aliases.csv"
+    aliases.write_text("symbol,name,aliases\nPANW,Palo Alto Networks,PANW\n", encoding="utf-8")
+
+    rows = extract_source_records(raw_items, aliases, tmp_path / "events.csv")
+
+    assert rows == []
+
+
+def test_third_party_mentions_are_not_issuer_evidence(tmp_path: Path) -> None:
+    raw_items = tmp_path / "source_items.csv"
+    raw_items.write_text(
+        "item_id,published_at,source_type,source_url,author,text\n"
+        "policy,2026-04-01T00:00:00Z,government_policy,https://www.nist.gov/example,NIST,"
+        'Palo Alto Networks was mentioned in general guidance.\n'
+        "remarks,2026-04-02T00:00:00Z,official_remarks,https://www.whitehouse.gov/example,White House,"
+        'Palo Alto Networks was mentioned in remarks.\n'
+        "media,2026-04-03T00:00:00Z,financial_media,https://example.com/article,Media,"
+        'Palo Alto Networks was mentioned in market coverage.\n',
+        encoding="utf-8",
+    )
+    aliases = tmp_path / "aliases.csv"
+    aliases.write_text("symbol,name,aliases\nPANW,Palo Alto Networks,Palo Alto Networks|PANW\n", encoding="utf-8")
+
+    rows = extract_source_records(raw_items, aliases, tmp_path / "events.csv")
+
+    assert len(rows) == 3
+    assert {row["entity_match_type"] for row in rows} == {"unverified"}
+
+
 def test_direct_beneficiary_overrides_generic_alias(tmp_path: Path) -> None:
     raw_items = tmp_path / "source_items.csv"
     raw_items.write_text(
