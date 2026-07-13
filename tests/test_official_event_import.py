@@ -7,6 +7,7 @@ import pytest
 from political_event_tracking_research.official_event_import import (
     OfficialRecord,
     import_official_events,
+    load_official_records,
     normalize_records,
 )
 
@@ -28,6 +29,66 @@ def test_import_official_events_normalizes_to_event_schema(tmp_path: Path) -> No
     assert rows[-2]["event_id"] == "official-issuer-release-demo-issuer-evt3"
     assert rows[-1]["event_id"] == "official-financial-media-demo-media-evt5"
     assert rows[-1]["confidence"] == "low"
+    assert set(rows[0]) == {
+        "event_id",
+        "event_date",
+        "symbol",
+        "event_type",
+        "direction",
+        "confidence",
+        "source_url",
+        "notes",
+    }
+
+
+def test_load_official_records_defaults_entity_fields_for_legacy_csv(tmp_path: Path) -> None:
+    input_path = tmp_path / "legacy.csv"
+    input_path.write_text(
+        "record_id,record_date,symbol,source_type,event_type,direction,source_url,summary\n"
+        "legacy-1,2026-01-10,EVT1,government_filing,disclosure_buy,bullish,"
+        "https://www.sec.gov/example/legacy-1,Legacy record.\n",
+        encoding="utf-8",
+    )
+
+    record = load_official_records(input_path)[0]
+
+    assert record.entity_match_type == "unverified"
+    assert record.match_evidence == ""
+    assert record.relationship_type == "unverified"
+
+
+@pytest.mark.parametrize("value", ["issuer", "direct_beneficiary", "industry_context", "unverified"])
+def test_new_entity_fields_accept_allowed_values(tmp_path: Path, value: str) -> None:
+    input_path = tmp_path / "entity-fields.csv"
+    input_path.write_text(
+        "record_id,record_date,symbol,source_type,event_type,direction,source_url,summary,"
+        "entity_match_type,match_evidence,relationship_type\n"
+        "entity-1,2026-01-10,EVT1,government_filing,disclosure_buy,bullish,"
+        f"https://www.sec.gov/example/entity-1,Entity record.,{value},SEC filing,{value}\n",
+        encoding="utf-8",
+    )
+
+    rows = normalize_records(load_official_records(input_path))
+
+    assert rows[0]["event_id"] == "official-government-filing-entity-1"
+
+
+@pytest.mark.parametrize("field", ["entity_match_type", "relationship_type"])
+@pytest.mark.parametrize("value", ["", "   ", "not-allowed"])
+def test_new_entity_fields_fail_closed_for_blank_or_invalid_values(tmp_path: Path, field: str, value: str) -> None:
+    input_path = tmp_path / f"invalid-{field}.csv"
+    entity_match_type = value if field == "entity_match_type" else "issuer"
+    relationship_type = value if field == "relationship_type" else "issuer"
+    input_path.write_text(
+        "record_id,record_date,symbol,source_type,event_type,direction,source_url,summary,"
+        "entity_match_type,match_evidence,relationship_type\n"
+        f"entity-1,2026-01-10,EVT1,government_filing,disclosure_buy,bullish,"
+        f"https://www.sec.gov/example/entity-1,Entity record.,{entity_match_type},SEC filing,{relationship_type}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        normalize_records(load_official_records(input_path))
 
 
 def test_government_records_reject_non_gov_urls() -> None:

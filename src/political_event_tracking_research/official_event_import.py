@@ -34,6 +34,10 @@ ALLOWED_EVENT_TYPES = frozenset(
     }
 )
 
+ALLOWED_ENTITY_RELATIONSHIP_TYPES = frozenset(
+    {"issuer", "direct_beneficiary", "industry_context", "unverified"}
+)
+
 
 @dataclass(frozen=True)
 class OfficialRecord:
@@ -45,6 +49,9 @@ class OfficialRecord:
     direction: str
     source_url: str
     summary: str
+    entity_match_type: str = "unverified"
+    match_evidence: str = ""
+    relationship_type: str = "unverified"
 
 
 def slug(value: str) -> str:
@@ -76,6 +83,9 @@ def load_official_records(path: str | Path) -> list[OfficialRecord]:
                 direction=row.get("direction", ""),
                 source_url=row["source_url"],
                 summary=row.get("summary", ""),
+                entity_match_type=row.get("entity_match_type", "unverified"),
+                match_evidence=row.get("match_evidence", ""),
+                relationship_type=row.get("relationship_type", "unverified"),
             )
         )
     return records
@@ -87,6 +97,12 @@ def validate_record(record: OfficialRecord) -> None:
         raise ValueError("record_id is required")
     if not record.symbol.strip():
         raise ValueError(f"{record.record_id}: symbol is required")
+    for field_name, value in (
+        ("entity_match_type", record.entity_match_type),
+        ("relationship_type", record.relationship_type),
+    ):
+        if value not in ALLOWED_ENTITY_RELATIONSHIP_TYPES:
+            raise ValueError(f"{record.record_id}: unsupported {field_name} {value!r}")
     if record.event_type not in ALLOWED_EVENT_TYPES:
         raise ValueError(f"{record.record_id}: unsupported event_type {record.event_type!r}")
     if record.source_type in GOVERNMENT_SOURCE_TYPES:
