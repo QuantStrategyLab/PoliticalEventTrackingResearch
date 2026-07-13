@@ -34,6 +34,10 @@ ALLOWED_EVENT_TYPES = frozenset(
     }
 )
 
+ALLOWED_ENTITY_MATCH_TYPES = frozenset(
+    {"issuer", "direct_beneficiary", "industry_context", "unverified"}
+)
+
 
 @dataclass(frozen=True)
 class OfficialRecord:
@@ -45,6 +49,9 @@ class OfficialRecord:
     direction: str
     source_url: str
     summary: str
+    entity_match_type: str = "unverified"
+    match_evidence: str = ""
+    relationship_type: str = ""
 
 
 def slug(value: str) -> str:
@@ -76,6 +83,9 @@ def load_official_records(path: str | Path) -> list[OfficialRecord]:
                 direction=row.get("direction", ""),
                 source_url=row["source_url"],
                 summary=row.get("summary", ""),
+                entity_match_type=row.get("entity_match_type") or "unverified",
+                match_evidence=row.get("match_evidence", ""),
+                relationship_type=row.get("relationship_type", ""),
             )
         )
     return records
@@ -89,6 +99,10 @@ def validate_record(record: OfficialRecord) -> None:
         raise ValueError(f"{record.record_id}: symbol is required")
     if record.event_type not in ALLOWED_EVENT_TYPES:
         raise ValueError(f"{record.record_id}: unsupported event_type {record.event_type!r}")
+    if record.entity_match_type not in ALLOWED_ENTITY_MATCH_TYPES:
+        raise ValueError(
+            f"{record.record_id}: unsupported entity_match_type {record.entity_match_type!r}"
+        )
     if record.source_type in GOVERNMENT_SOURCE_TYPES:
         if not is_government_url(record.source_url):
             raise ValueError(f"{record.record_id}: government source URLs must be https .gov URLs")
@@ -125,6 +139,9 @@ def normalize_records(records: list[OfficialRecord]) -> list[dict[str, str]]:
                 "confidence": confidence_for_source(record),
                 "source_url": record.source_url,
                 "notes": record.summary,
+                "entity_match_type": record.entity_match_type,
+                "match_evidence": record.match_evidence,
+                "relationship_type": record.relationship_type,
             }
         )
     rows.sort(key=lambda row: (row["event_date"], row["symbol"], row["event_id"]))
@@ -136,7 +153,19 @@ def import_official_events(input_path: str | Path, output_path: str | Path) -> l
     rows = normalize_records(records)
     write_csv_rows(
         output_path,
-        ["event_id", "event_date", "symbol", "event_type", "direction", "confidence", "source_url", "notes"],
+        [
+            "event_id",
+            "event_date",
+            "symbol",
+            "event_type",
+            "direction",
+            "confidence",
+            "source_url",
+            "notes",
+            "entity_match_type",
+            "match_evidence",
+            "relationship_type",
+        ],
         rows,
     )
     return rows
