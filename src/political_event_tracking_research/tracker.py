@@ -67,6 +67,8 @@ def latest_event(events: list[Event]) -> Event | None:
 def event_score(events: list[Event]) -> int:
     score = 0
     for event in events:
+        if event.entity_match_type not in {"issuer", "direct_beneficiary"}:
+            continue
         score += EVENT_WEIGHTS.get(event.event_type, 0)
         score += CONFIDENCE_WEIGHTS.get(event.confidence, 0)
     return score

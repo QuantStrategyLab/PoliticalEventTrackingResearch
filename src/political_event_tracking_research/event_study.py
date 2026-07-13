@@ -18,6 +18,9 @@ class Event:
     confidence: str
     source_url: str
     notes: str
+    entity_match_type: str = "unverified"
+    match_evidence: str = ""
+    relationship_type: str = "unverified"
 
 
 @dataclass(frozen=True)
@@ -74,6 +77,9 @@ def load_events(path: str | Path) -> list[Event]:
                 confidence=row.get("confidence", ""),
                 source_url=row.get("source_url", ""),
                 notes=row.get("notes", ""),
+                entity_match_type=row.get("entity_match_type", "unverified") or "unverified",
+                match_evidence=row.get("match_evidence", ""),
+                relationship_type=row.get("relationship_type", "unverified") or "unverified",
             )
         )
     return events

@@ -9,6 +9,13 @@
 - `data/live/political_watchlist.csv`：真实发布链路的初始观察池。
 - `data/live/source_items.csv`：定时 RSS pipeline 最近一次拉取的公开原始文本。
 - `data/live/source_events.csv`：从 `source_items.csv` 确定性抽取出的事件。
+
+`source_events.csv` 保留原有字段，并增加兼容字段：
+`entity_match_type`、`match_evidence`、`relationship_type`。关系值为
+`issuer`、`direct_beneficiary`、`industry_context` 或 `unverified`。
+只有前两类可作为公司级证据；行业通用词会保留用于审计，但不会进入公司事件评分。
+live 抽取器不会输出无法验证实体关联的行；旧格式导入行默认为
+`unverified`，下游公司事件评分会 fail-closed。
 - `data/live/political_events.csv`：Advisor 稳定读取的真实事件输入，由 RSS/source pipeline 刷新，也可以人工核验后维护。
 - `data/live/source_tracker.csv`：观察池与事件合并后的 tracker。
 

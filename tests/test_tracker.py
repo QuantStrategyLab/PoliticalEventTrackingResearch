@@ -38,3 +38,12 @@ def test_tracker_prioritizes_disclosure_plus_mention() -> None:
     assert rows[0]["latest_event_date"] == "2026-01-02"
     assert rows[1]["symbol"] == "BBB"
     assert rows[1]["trigger_status"] == "watchlist"
+
+
+def test_tracker_does_not_score_industry_context_as_company_evidence() -> None:
+    item = WatchlistItem("AAA", "Alpha", "watchlist", "watchlist", "seed", "https://example.com")
+    events = [Event("e1", date(2026, 1, 1), "AAA", "public_mention", "bullish", "high", "https://example.com", "", "industry_context", "cybersecurity", "industry_context")]
+
+    rows = build_tracker_rows([item], events)
+
+    assert rows[0]["priority_score"] == 0

@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from political_event_tracking_research.source_mention_extract import extract_source_records, infer_direction, match_symbols
+from political_event_tracking_research.source_mention_extract import (
+    extract_source_records,
+    infer_direction,
+    match_symbols,
+)
 from political_event_tracking_research.source_mention_extract import MentionAlias
 
 
@@ -51,3 +55,91 @@ def test_extract_source_records_outputs_confidence_by_source_type(tmp_path: Path
     assert by_symbol["EVT3"]["confidence"] == "low"
     assert by_symbol["EVT4"]["event_type"] == "procurement"
     assert output.exists()
+
+
+def test_generic_aliases_are_context_only_and_keep_evidence(tmp_path: Path) -> None:
+    raw_items = tmp_path / "source_items.csv"
+    raw_items.write_text(
+        "item_id,published_at,source_type,source_url,author,text\n"
+        "nist-1,2026-04-01T00:00:00Z,government_policy,https://www.nist.gov/example,NIST,"
+        'NIST guidance discusses nuclear reactor safety and tokenization.\n',
+        encoding="utf-8",
+    )
+    aliases = tmp_path / "aliases.csv"
+    aliases.write_text(
+        "symbol,name,aliases\n"
+        "OKLO,Oklo,Oklo|OKLO|nuclear reactor\n"
+        "COIN,Coinbase,Coinbase|COIN|tokenization\n",
+        encoding="utf-8",
+    )
+
+    rows = extract_source_records(raw_items, aliases, tmp_path / "events.csv")
+
+    by_symbol = {row["symbol"]: row for row in rows}
+    assert by_symbol["OKLO"]["entity_match_type"] == "industry_context"
+    assert by_symbol["COIN"]["entity_match_type"] == "industry_context"
+    assert by_symbol["OKLO"]["match_evidence"] == "nuclear reactor"
+    assert by_symbol["COIN"]["relationship_type"] == "industry_context"
+
+
+def test_explicit_issuer_match_is_company_level(tmp_path: Path) -> None:
+    raw_items = tmp_path / "source_items.csv"
+    raw_items.write_text(
+        "item_id,published_at,source_type,source_url,author,text\n"
+        "issuer-1,2026-04-01T00:00:00Z,issuer_release,https://example.com/release,Issuer,"
+        'Coinbase announced a new product.\n',
+        encoding="utf-8",
+    )
+    aliases = tmp_path / "aliases.csv"
+    aliases.write_text("symbol,name,aliases\nCOIN,Coinbase,COIN|tokenization\n", encoding="utf-8")
+
+    rows = extract_source_records(raw_items, aliases, tmp_path / "events.csv")
+
+    assert rows[0]["entity_match_type"] == "issuer"
+    assert rows[0]["relationship_type"] == "issuer"
+    assert rows[0]["match_evidence"] == "Coinbase"
+
+
+def test_explicit_beneficiary_relation_is_preserved(tmp_path: Path) -> None:
+    raw_items = tmp_path / "source_items.csv"
+    raw_items.write_text(
+        "item_id,published_at,source_type,source_url,author,text\n"
+        "award-1,2026-04-01T00:00:00Z,government_procurement,https://www.govinfo.gov/example,Agency,"
+        'Funding for Coinbase was announced.\n',
+        encoding="utf-8",
+    )
+    aliases = tmp_path / "aliases.csv"
+    aliases.write_text("symbol,name,aliases\nCOIN,Coinbase,COIN\n", encoding="utf-8")
+
+    rows = extract_source_records(raw_items, aliases, tmp_path / "events.csv")
+
+    assert rows[0]["entity_match_type"] == "direct_beneficiary"
+    assert rows[0]["relationship_type"] == "direct_beneficiary"
+
+
+def test_known_ticker_and_industry_collisions_never_become_issuer_events(tmp_path: Path) -> None:
+    raw_items = tmp_path / "source_items.csv"
+    raw_items.write_text(
+        "item_id,published_at,source_type,source_url,author,text\n"
+        "mstr,2026-04-01T00:00:00Z,government_policy,https://www.nist.gov/mstr,NIST,Strategy guidance\n"
+        "oklo,2026-04-01T00:00:00Z,government_policy,https://www.nist.gov/oklo,NIST,nuclear reactor safety\n"
+        "panw,2026-04-01T00:00:00Z,government_policy,https://www.nist.gov/panw,NIST,generic cybersecurity guidance\n"
+        "coin,2026-04-01T00:00:00Z,government_policy,https://www.federalreserve.gov/coin,Fed,tokenization policy\n"
+        "intc,2026-04-01T00:00:00Z,government_policy,https://www.commerce.gov/intc,Commerce,CHIPS Act funding\n",
+        encoding="utf-8",
+    )
+    aliases = tmp_path / "aliases.csv"
+    aliases.write_text(
+        "symbol,name,aliases\n"
+        "MSTR,Strategy,Strategy|MSTR\n"
+        "OKLO,Oklo,Oklo|OKLO|nuclear reactor\n"
+        "PANW,Palo Alto Networks,Palo Alto Networks|PANW|cybersecurity\n"
+        "COIN,Coinbase,Coinbase|COIN|tokenization\n"
+        "INTC,Intel,Intel|INTC|CHIPS Act\n",
+        encoding="utf-8",
+    )
+
+    rows = extract_source_records(raw_items, aliases, tmp_path / "events.csv")
+
+    assert {row["symbol"] for row in rows} == {"MSTR", "OKLO", "PANW", "COIN", "INTC"}
+    assert {row["entity_match_type"] for row in rows} == {"industry_context"}

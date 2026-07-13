@@ -10,6 +10,9 @@ from .event_study import parse_date
 from .official_event_import import OfficialRecord, normalize_records
 
 
+GENERIC_ENTITY_NAMES = frozenset({"strategy"})
+
+
 @dataclass(frozen=True)
 class RawSourceItem:
     item_id: str
@@ -24,6 +27,7 @@ class RawSourceItem:
 class MentionAlias:
     symbol: str
     aliases: tuple[str, ...]
+    name: str = ""
 
 
 def load_raw_items(path: str | Path) -> list[RawSourceItem]:
@@ -51,10 +55,13 @@ def load_aliases(path: str | Path) -> list[MentionAlias]:
     records: list[MentionAlias] = []
     for row in read_csv_rows(path):
         symbol = row["symbol"].upper()
+        name = row.get("name", "").strip()
         aliases = split_aliases(row.get("aliases", ""))
+        if name and name.casefold() not in {alias.casefold() for alias in aliases}:
+            aliases = (name, *aliases)
         if symbol not in aliases:
             aliases = (symbol, *aliases)
-        records.append(MentionAlias(symbol=symbol, aliases=aliases))
+        records.append(MentionAlias(symbol=symbol, aliases=aliases, name=name))
     return records
 
 
@@ -86,6 +93,36 @@ def match_symbols(text: str, aliases: list[MentionAlias]) -> list[str]:
         if any(alias_pattern(alias).search(normalized_text) for alias in alias_record.aliases):
             matches.append(alias_record.symbol)
     return sorted(dict.fromkeys(matches))
+
+
+def _is_generic_alias(alias_record: MentionAlias, alias: str) -> bool:
+    normalized = normalize_match_text(alias).strip()
+    if normalized.upper() == alias_record.symbol.upper():
+        return False
+    if normalized.casefold() == alias_record.name.casefold():
+        return normalized.casefold() in GENERIC_ENTITY_NAMES
+    if alias_record.name:
+        return True
+    # Lower-case phrases are intentionally treated as industry vocabulary, not entities.
+    return normalized == normalized.lower() or len(normalized.split()) >= 3 and not normalized.istitle()
+
+
+def match_evidence(text: str, alias_record: MentionAlias) -> tuple[str, str] | None:
+    normalized_text = normalize_match_text(text)
+    for alias in alias_record.aliases:
+        if not alias_pattern(alias).search(normalized_text):
+            continue
+        if _is_generic_alias(alias_record, alias):
+            return "industry_context", normalize_match_text(alias)
+        relationship = "issuer"
+        if re.search(
+            rf"(?:awarded to|contract with|funding for|benefit(?:s|ed)? from)\s+(?:the\s+)?{re.escape(normalize_match_text(alias))}",
+            normalized_text,
+            re.IGNORECASE,
+        ):
+            relationship = "direct_beneficiary"
+        return relationship, normalize_match_text(alias)
+    return None
 
 
 def infer_event_type(item: RawSourceItem) -> str:
@@ -133,24 +170,42 @@ def extract_source_records(raw_items_path: str | Path, aliases_path: str | Path,
     aliases = load_aliases(aliases_path)
     records: list[OfficialRecord] = []
     for item in raw_items:
-        symbols = match_symbols(item.text, aliases)
-        for symbol in symbols:
+        for alias_record in aliases:
+            evidence = match_evidence(item.text, alias_record)
+            if evidence is None:
+                continue
+            entity_match_type, matched_text = evidence
             records.append(
                 OfficialRecord(
-                    record_id=f"{item.item_id}-{symbol.lower()}",
+                    record_id=f"{item.item_id}-{alias_record.symbol.lower()}",
                     record_date=item_date(item),
-                    symbol=symbol,
+                    symbol=alias_record.symbol,
                     source_type=item.source_type,
                     event_type=infer_event_type(item),
                     direction=infer_direction(item.text),
                     source_url=item.source_url,
                     summary=f"{item.author}: {item.text}".strip(": "),
+                    entity_match_type=entity_match_type,
+                    match_evidence=matched_text,
+                    relationship_type=entity_match_type,
                 )
             )
     rows = normalize_records(records)
     write_csv_rows(
         output_path,
-        ["event_id", "event_date", "symbol", "event_type", "direction", "confidence", "source_url", "notes"],
+        [
+            "event_id",
+            "event_date",
+            "symbol",
+            "event_type",
+            "direction",
+            "confidence",
+            "source_url",
+            "notes",
+            "entity_match_type",
+            "match_evidence",
+            "relationship_type",
+        ],
         rows,
     )
     return rows
