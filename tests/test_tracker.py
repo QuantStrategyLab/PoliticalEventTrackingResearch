@@ -26,8 +26,8 @@ def test_tracker_prioritizes_disclosure_plus_mention() -> None:
         ),
     ]
     events = [
-        Event("e1", date(2026, 1, 1), "AAA", "disclosure_buy", "bullish", "low", "https://example.com", ""),
-        Event("e2", date(2026, 1, 2), "AAA", "public_mention", "bullish", "low", "https://example.com", ""),
+        Event("e1", date(2026, 1, 1), "AAA", "disclosure_buy", "bullish", "low", "https://example.com", "", relationship_type="issuer"),
+        Event("e2", date(2026, 1, 2), "AAA", "public_mention", "bullish", "low", "https://example.com", "", relationship_type="issuer"),
     ]
 
     rows = build_tracker_rows(items, events)
@@ -56,3 +56,17 @@ def test_tracker_uses_relationship_type_as_scoring_fact() -> None:
     rows = build_tracker_rows([item], events)
 
     assert rows[0]["priority_score"] > 0
+
+
+def test_tracker_mixed_only_exposes_verified_company_events() -> None:
+    item = WatchlistItem("AAA", "Alpha", "watchlist", "watchlist", "seed", "https://example.com")
+    events = [
+        Event("context", date(2026, 1, 2), "AAA", "public_mention", "bullish", "high", "https://example.com", "", relationship_type="industry_context"),
+        Event("issuer", date(2026, 1, 1), "AAA", "public_mention", "bullish", "high", "https://example.com", "", relationship_type="issuer"),
+    ]
+
+    rows = build_tracker_rows([item], events)
+
+    assert rows[0]["event_count"] == 1
+    assert rows[0]["latest_event_date"] == "2026-01-01"
+    assert rows[0]["latest_event_type"] == "public_mention"

@@ -58,6 +58,7 @@ class EventReturn:
 
 
 PriceTable = dict[str, dict[date, float]]
+VERIFIED_RELATIONSHIPS = frozenset({"issuer", "direct_beneficiary"})
 
 
 def parse_date(value: str) -> date:
@@ -134,6 +135,8 @@ def compute_event_returns(
     benchmark_symbol = benchmark_symbol.upper()
 
     for event in events:
+        if event.relationship_type not in VERIFIED_RELATIONSHIPS:
+            continue
         symbol_dates = sorted_dates(prices, event.symbol)
         base_date = first_trading_date_on_or_after(symbol_dates, event.event_date)
         if base_date is None:

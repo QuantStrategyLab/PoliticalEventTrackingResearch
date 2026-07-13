@@ -18,6 +18,7 @@ def test_compute_event_returns_uses_next_available_trading_date_and_benchmark() 
             confidence="high",
             source_url="https://example.com",
             notes="seed",
+            relationship_type="issuer",
         )
     ]
     prices = {
@@ -59,3 +60,13 @@ def test_compute_event_returns_skips_events_without_prices() -> None:
     ]
 
     assert compute_event_returns(events, prices={}, windows=(1,)) == []
+
+
+def test_compute_event_returns_excludes_non_company_relationships() -> None:
+    events = [
+        Event("context", date(2026, 1, 2), "ABC", "public_mention", "bullish", "high", "https://example.com", "", relationship_type="industry_context"),
+        Event("unknown", date(2026, 1, 2), "ABC", "public_mention", "bullish", "high", "https://example.com", ""),
+    ]
+    prices = {"ABC": {date(2026, 1, 5): 100.0, date(2026, 1, 6): 110.0}}
+
+    assert compute_event_returns(events, prices, windows=(1,)) == []

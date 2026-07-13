@@ -27,6 +27,12 @@ GENERIC_ALIAS_DENYLIST = frozenset(
         "tokenization",
     }
 )
+RELATIONSHIP_PRIORITY = {
+    "unverified": 0,
+    "industry_context": 1,
+    "issuer": 2,
+    "direct_beneficiary": 3,
+}
 
 
 @dataclass(frozen=True)
@@ -120,20 +126,22 @@ def _is_generic_alias(alias_record: MentionAlias, alias: str) -> bool:
 
 def match_evidence(text: str, alias_record: MentionAlias) -> tuple[str, str] | None:
     normalized_text = normalize_match_text(text)
+    matches: list[tuple[str, str]] = []
     for alias in alias_record.aliases:
         if not alias_pattern(alias).search(normalized_text):
             continue
         if _is_generic_alias(alias_record, alias):
-            return "industry_context", normalize_match_text(alias)
-        relationship = "issuer"
-        if re.search(
+            matches.append(("industry_context", normalize_match_text(alias)))
+            continue
+        relationship = "direct_beneficiary" if re.search(
             rf"(?:awarded to|contract with|funding for|benefit(?:s|ed)? from)\s+(?:the\s+)?{re.escape(normalize_match_text(alias))}",
             normalized_text,
             re.IGNORECASE,
-        ):
-            relationship = "direct_beneficiary"
-        return relationship, normalize_match_text(alias)
-    return None
+        ) else "issuer"
+        matches.append((relationship, normalize_match_text(alias)))
+    if not matches:
+        return None
+    return max(matches, key=lambda match: (RELATIONSHIP_PRIORITY[match[0]], match[1].casefold()))
 
 
 def infer_event_type(item: RawSourceItem) -> str:

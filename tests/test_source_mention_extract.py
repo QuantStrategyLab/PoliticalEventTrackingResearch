@@ -117,6 +117,26 @@ def test_proper_noun_alternate_alias_remains_company_level(tmp_path: Path) -> No
     assert rows[0]["match_evidence"] == "Former Brand"
 
 
+def test_strongest_match_wins_regardless_of_alias_order(tmp_path: Path) -> None:
+    raw_items = tmp_path / "source_items.csv"
+    raw_items.write_text(
+        "item_id,published_at,source_type,source_url,author,text\n"
+        "mixed-1,2026-04-01T00:00:00Z,government_procurement,https://www.govinfo.gov/example,Agency,"
+        'Funding for Current Company supports cybersecurity.\n',
+        encoding="utf-8",
+    )
+    aliases = tmp_path / "aliases.csv"
+    aliases.write_text(
+        "symbol,name,aliases\nTEST,Current Company,cybersecurity|Current Company\n",
+        encoding="utf-8",
+    )
+
+    rows = extract_source_records(raw_items, aliases, tmp_path / "events.csv")
+
+    assert rows[0]["entity_match_type"] == "direct_beneficiary"
+    assert rows[0]["match_evidence"] == "Current Company"
+
+
 def test_explicit_beneficiary_relation_is_preserved(tmp_path: Path) -> None:
     raw_items = tmp_path / "source_items.csv"
     raw_items.write_text(

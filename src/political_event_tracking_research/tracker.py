@@ -95,17 +95,20 @@ def build_tracker_rows(items: list[WatchlistItem], events: list[Event]) -> list[
     rows: list[dict[str, object]] = []
     for item in items:
         symbol_events = sorted(events_by_symbol.get(item.symbol, []), key=lambda event: (event.event_date, event.event_id))
-        latest = latest_event(symbol_events)
+        company_events = [
+            event for event in symbol_events if event.relationship_type in {"issuer", "direct_beneficiary"}
+        ]
+        latest = latest_event(company_events)
         base_score = BUCKET_WEIGHTS.get(item.bucket, 0)
-        score = base_score + event_score(symbol_events)
+        score = base_score + event_score(company_events)
         rows.append(
             {
                 "symbol": item.symbol,
                 "name": item.name,
                 "bucket": item.bucket,
-                "trigger_status": trigger_status(item, symbol_events),
+                "trigger_status": trigger_status(item, company_events),
                 "priority_score": score,
-                "event_count": len(symbol_events),
+                "event_count": len(company_events),
                 "latest_event_date": latest.event_date.isoformat() if latest else "",
                 "latest_event_type": latest.event_type if latest else "",
                 "source_url": item.source_url,
