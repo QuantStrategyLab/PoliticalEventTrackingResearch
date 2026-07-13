@@ -38,6 +38,22 @@ ALLOWED_ENTITY_MATCH_TYPES = frozenset(
     {"issuer", "direct_beneficiary", "industry_context", "unverified"}
 )
 
+LEGACY_EVENT_COLUMNS = [
+    "event_id",
+    "event_date",
+    "symbol",
+    "event_type",
+    "direction",
+    "confidence",
+    "source_url",
+    "notes",
+]
+ENTITY_EVENT_COLUMNS = LEGACY_EVENT_COLUMNS + [
+    "entity_match_type",
+    "match_evidence",
+    "relationship_type",
+]
+
 
 @dataclass(frozen=True)
 class OfficialRecord:
@@ -148,24 +164,17 @@ def normalize_records(records: list[OfficialRecord]) -> list[dict[str, str]]:
     return rows
 
 
-def import_official_events(input_path: str | Path, output_path: str | Path) -> list[dict[str, str]]:
+def import_official_events(
+    input_path: str | Path,
+    output_path: str | Path,
+    *,
+    include_entity_metadata: bool = False,
+) -> list[dict[str, str]]:
     records = load_official_records(input_path)
     rows = normalize_records(records)
     write_csv_rows(
         output_path,
-        [
-            "event_id",
-            "event_date",
-            "symbol",
-            "event_type",
-            "direction",
-            "confidence",
-            "source_url",
-            "notes",
-            "entity_match_type",
-            "match_evidence",
-            "relationship_type",
-        ],
+        ENTITY_EVENT_COLUMNS if include_entity_metadata else LEGACY_EVENT_COLUMNS,
         rows,
     )
     return rows
@@ -177,12 +186,17 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--input", required=True, help="Official-source record CSV.")
     parser.add_argument("--output", required=True, help="Output normalized event CSV.")
+    parser.add_argument(
+        "--include-entity-metadata",
+        action="store_true",
+        help="Opt in to entity metadata columns in the normalized CSV.",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> None:
     args = build_arg_parser().parse_args(argv)
-    import_official_events(args.input, args.output)
+    import_official_events(args.input, args.output, include_entity_metadata=args.include_entity_metadata)
 
 
 if __name__ == "__main__":

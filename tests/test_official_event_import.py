@@ -31,7 +31,7 @@ def test_import_official_events_normalizes_to_event_schema(tmp_path: Path) -> No
     assert rows[-1]["confidence"] == "low"
 
 
-def test_legacy_input_defaults_entity_schema_fields_and_serializes_stably(tmp_path: Path) -> None:
+def test_legacy_input_defaults_to_legacy_eight_column_serialization(tmp_path: Path) -> None:
     output = tmp_path / "events.csv"
 
     rows = import_official_events(ROOT / "examples/official_records.example.csv", output)
@@ -49,10 +49,41 @@ def test_legacy_input_defaults_entity_schema_fields_and_serializes_stably(tmp_pa
             "confidence",
             "source_url",
             "notes",
-            "entity_match_type",
-            "match_evidence",
-            "relationship_type",
         ]
+
+
+def test_entity_metadata_serialization_requires_explicit_opt_in(tmp_path: Path) -> None:
+    input_path = tmp_path / "official-records.csv"
+    output = tmp_path / "events.csv"
+    input_path.write_text(
+        "record_id,record_date,symbol,source_type,event_type,direction,source_url,summary,"
+        "entity_match_type,match_evidence,relationship_type\n"
+        "entity-record,2026-01-10,EVT,government_filing,disclosure_buy,bullish,"
+        "https://www.sec.gov/example/entity-record,Entity evidence.,direct_beneficiary,"
+        "Named beneficiary in filing.,supplier\n",
+        encoding="utf-8",
+    )
+
+    import_official_events(input_path, output, include_entity_metadata=True)
+
+    with output.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    assert list(rows[0]) == [
+        "event_id",
+        "event_date",
+        "symbol",
+        "event_type",
+        "direction",
+        "confidence",
+        "source_url",
+        "notes",
+        "entity_match_type",
+        "match_evidence",
+        "relationship_type",
+    ]
+    assert rows[0]["entity_match_type"] == "direct_beneficiary"
+    assert rows[0]["match_evidence"] == "Named beneficiary in filing."
+    assert rows[0]["relationship_type"] == "supplier"
 
 
 def test_entity_schema_fields_are_imported_and_normalized() -> None:
