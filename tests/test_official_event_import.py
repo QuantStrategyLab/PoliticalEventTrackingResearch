@@ -76,3 +76,21 @@ def test_community_lead_records_are_not_in_stable_source_set() -> None:
 
     with pytest.raises(ValueError, match="unsupported source_type"):
         normalize_records([record])
+
+
+def test_import_rejects_mismatched_entity_and_relationship_types() -> None:
+    record = OfficialRecord(
+        record_id="mismatched-relation",
+        record_date="2026-01-10",
+        symbol="BAD",
+        source_type="issuer_release",
+        event_type="public_mention",
+        direction="neutral",
+        source_url="https://example.com/release",
+        summary="Mismatched evidence fields.",
+        entity_match_type="issuer",
+        relationship_type="industry_context",
+    )
+
+    with pytest.raises(ValueError, match="must agree"):
+        normalize_records([record])

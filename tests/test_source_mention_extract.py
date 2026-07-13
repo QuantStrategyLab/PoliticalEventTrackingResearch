@@ -100,6 +100,23 @@ def test_explicit_issuer_match_is_company_level(tmp_path: Path) -> None:
     assert rows[0]["match_evidence"] == "Coinbase"
 
 
+def test_proper_noun_alternate_alias_remains_company_level(tmp_path: Path) -> None:
+    raw_items = tmp_path / "source_items.csv"
+    raw_items.write_text(
+        "item_id,published_at,source_type,source_url,author,text\n"
+        "issuer-2,2026-04-01T00:00:00Z,issuer_release,https://example.com/release,Issuer,"
+        'Former Brand announced a new product.\n',
+        encoding="utf-8",
+    )
+    aliases = tmp_path / "aliases.csv"
+    aliases.write_text("symbol,name,aliases\nTEST,Current Company,Current Company|Former Brand\n", encoding="utf-8")
+
+    rows = extract_source_records(raw_items, aliases, tmp_path / "events.csv")
+
+    assert rows[0]["entity_match_type"] == "issuer"
+    assert rows[0]["match_evidence"] == "Former Brand"
+
+
 def test_explicit_beneficiary_relation_is_preserved(tmp_path: Path) -> None:
     raw_items = tmp_path / "source_items.csv"
     raw_items.write_text(

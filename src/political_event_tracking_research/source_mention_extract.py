@@ -10,7 +10,23 @@ from .event_study import parse_date
 from .official_event_import import OfficialRecord, normalize_records
 
 
-GENERIC_ENTITY_NAMES = frozenset({"strategy"})
+GENERIC_ALIAS_DENYLIST = frozenset(
+    {
+        "advanced nuclear",
+        "bitcoin treasury",
+        "chips act",
+        "crypto assets",
+        "cybersecurity",
+        "digital assets",
+        "energy-related infrastructure",
+        "foundry",
+        "nuclear energy",
+        "nuclear reactor",
+        "semiconductor manufacturing",
+        "strategy",
+        "tokenization",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -99,12 +115,7 @@ def _is_generic_alias(alias_record: MentionAlias, alias: str) -> bool:
     normalized = normalize_match_text(alias).strip()
     if normalized.upper() == alias_record.symbol.upper():
         return False
-    if normalized.casefold() == alias_record.name.casefold():
-        return normalized.casefold() in GENERIC_ENTITY_NAMES
-    if alias_record.name:
-        return True
-    # Lower-case phrases are intentionally treated as industry vocabulary, not entities.
-    return normalized == normalized.lower() or len(normalized.split()) >= 3 and not normalized.istitle()
+    return normalized.casefold() in GENERIC_ALIAS_DENYLIST
 
 
 def match_evidence(text: str, alias_record: MentionAlias) -> tuple[str, str] | None:

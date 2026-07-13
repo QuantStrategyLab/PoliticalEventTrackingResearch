@@ -97,6 +97,8 @@ def validate_record(record: OfficialRecord) -> None:
         raise ValueError(f"{record.record_id}: unsupported entity_match_type {record.entity_match_type!r}")
     if record.relationship_type not in {"issuer", "direct_beneficiary", "industry_context", "unverified"}:
         raise ValueError(f"{record.record_id}: unsupported relationship_type {record.relationship_type!r}")
+    if record.entity_match_type != record.relationship_type:
+        raise ValueError(f"{record.record_id}: entity_match_type and relationship_type must agree")
     if record.event_type not in ALLOWED_EVENT_TYPES:
         raise ValueError(f"{record.record_id}: unsupported event_type {record.event_type!r}")
     if record.source_type in GOVERNMENT_SOURCE_TYPES:

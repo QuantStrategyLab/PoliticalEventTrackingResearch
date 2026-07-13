@@ -47,3 +47,12 @@ def test_tracker_does_not_score_industry_context_as_company_evidence() -> None:
     rows = build_tracker_rows([item], events)
 
     assert rows[0]["priority_score"] == 0
+
+
+def test_tracker_uses_relationship_type_as_scoring_fact() -> None:
+    item = WatchlistItem("AAA", "Alpha", "watchlist", "watchlist", "seed", "https://example.com")
+    events = [Event("e1", date(2026, 1, 1), "AAA", "public_mention", "bullish", "high", "https://example.com", "", "industry_context", "cybersecurity", "issuer")]
+
+    rows = build_tracker_rows([item], events)
+
+    assert rows[0]["priority_score"] > 0
