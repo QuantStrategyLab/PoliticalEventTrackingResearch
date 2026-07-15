@@ -198,26 +198,6 @@ def test_fetch_rss_sources_fails_when_all_feeds_fail(tmp_path: Path) -> None:
         )
 
 
-def test_all_zero_entry_feeds_write_quarantine_status_without_hard_failure(tmp_path: Path) -> None:
-    feeds_path = tmp_path / "feeds.csv"
-    feeds_path.write_text(
-        "feed_id,feed_url,source_type,author\n"
-        "empty,https://example.invalid/empty.xml,official_remarks,Example\n",
-        encoding="utf-8",
-    )
-    feed_xml = b"<rss version='2.0'><channel/></rss>"
-
-    output = tmp_path / "source_items.csv"
-    status = tmp_path / "status.json"
-    rows = fetch_rss_sources(feeds_path, output, status_output=status, fetcher=lambda _url: feed_xml)
-
-    assert rows == []
-    assert output.read_text(encoding="utf-8") == "item_id,published_at,source_type,source_url,author,text\n"
-    payload = json.loads(status.read_text(encoding="utf-8"))
-    assert payload["quarantined_feed_count"] == 1
-    assert payload["accepted_row_count"] == 0
-    assert payload["publication_complete"] is False
-    assert payload["eligible_for_live_publication"] is False
 
 
 def test_all_zero_entry_feeds_write_quarantine_status_without_hard_failure(tmp_path: Path) -> None:
@@ -236,6 +216,7 @@ def test_all_zero_entry_feeds_write_quarantine_status_without_hard_failure(tmp_p
     assert rows == []
     assert output.read_text(encoding="utf-8") == "item_id,published_at,source_type,source_url,author,text\n"
     payload = json.loads(status.read_text(encoding="utf-8"))
+    assert payload["feeds"][0]["kind"] == "rss"
     assert payload["quarantined_feed_count"] == 1
     assert payload["accepted_row_count"] == 0
     assert payload["publication_complete"] is False

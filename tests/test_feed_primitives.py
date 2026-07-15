@@ -70,6 +70,12 @@ def test_failed_rows_are_excluded_and_mixed_status_is_not_complete() -> None:
     ) == status
 
 
+def test_digest_matches_emitted_row_order() -> None:
+    late = {**ROW, "item_id": "feed-a-2", "published_at": "2026-05-02T12:30:00Z"}
+    status = build_status([feed("a", rows=[late, ROW])])
+    assert status["aggregate_row_digest"] == build_status([feed("a", rows=[ROW, late])])["aggregate_row_digest"]
+
+
 def test_canonical_roundtrip_and_order_are_strict() -> None:
     status = build_status([feed("b"), feed("a")])
     wire = serialize_status(status)

@@ -74,6 +74,10 @@ def _is_digest(value: object) -> bool:
     return type(value) is str and len(value) == 64 and all(char in "0123456789abcdef" for char in value)
 
 
+def _row_sort_key(row: PrimitiveRow) -> tuple[str, str]:
+    return row.published_at, row.item_id
+
+
 @dataclass(frozen=True, slots=True)
 class PrimitiveRow:
     item_id: str
@@ -156,7 +160,7 @@ def _snapshot_feed(value: object) -> dict[str, Any]:
 
 
 def _feed_wire(feed: Mapping[str, Any]) -> dict[str, object]:
-    rows = [row.to_mapping() for row in feed["rows"]]
+    rows = [row.to_mapping() for row in sorted(feed["rows"], key=_row_sort_key)]
     return {
         "feed_id": feed["feed_id"],
         "feed_url": feed["feed_url"],
@@ -189,7 +193,8 @@ def build_status(feed_records: Iterable[Mapping[str, object]]) -> dict[str, obje
     accepted = sum(item["state"] == "accepted" for item in records)
     failed = sum(item["state"] == "failed" for item in records)
     quarantined = sum(item["state"] == "quarantined" for item in records)
-    rows = [row.to_mapping() for item in records if item["state"] == "accepted" for row in item["rows"]]
+    accepted_rows = [row for item in records if item["state"] == "accepted" for row in item["rows"]]
+    rows = [row.to_mapping() for row in sorted(accepted_rows, key=_row_sort_key)]
     complete = accepted == len(records) and failed == 0 and quarantined == 0 and bool(rows)
     return {
         "status_version": STATUS_VERSION,

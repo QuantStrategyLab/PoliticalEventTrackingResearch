@@ -126,8 +126,8 @@ def parse_feed_items(
         raise FeedXmlError("feed_xml_invalid") from None
     rows: list[dict[str, str]] = []
 
-    rss_items = root.findall("./channel/item")
-    if rss_items:
+    if root.tag == "rss":
+        rss_items = root.findall("./channel/item")
         for item in rss_items[:max_items]:
             title = child_text(item, ("title",))
             link = rss_item_link(item)
