@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from political_event_tracking_research import rss_source_fetch
+from political_event_tracking_research.feed_primitives import parse_status_bytes
 from political_event_tracking_research.rss_source_fetch import FeedConfig, fetch_rss_sources, parse_feed_items
 
 
@@ -169,6 +170,7 @@ def test_fetch_rss_sources_can_continue_and_write_status(tmp_path: Path) -> None
 
     assert len(rows) == 1
     payload = json.loads(status.read_text(encoding="utf-8"))
+    parse_status_bytes(status.read_bytes())
     assert payload["successful_feed_count"] == 1
     assert payload["failed_feed_count"] == 1
     failed = next(item for item in payload["feeds"] if item["feed_id"] == "bad")

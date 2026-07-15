@@ -5,6 +5,7 @@ import json
 import pytest
 
 from political_event_tracking_research.feed_primitives import (
+    MAX_SAFE_JSON_INTEGER,
     PrimitiveStatusError,
     build_status,
     parse_status_bytes,
@@ -131,3 +132,16 @@ def test_unknown_keys_duplicate_wire_and_unsafe_types_fail_closed() -> None:
     duplicate = serialize_status(status).replace(b'"status_version":', b'"status_version":')
     with pytest.raises(PrimitiveStatusError):
         parse_status_bytes(duplicate[:-1] + b',"status_version":"other"}')
+
+
+def test_safe_integer_bound_and_feed_order_are_strict() -> None:
+    status = build_status([feed("a"), feed("b")])
+    payload = json.loads(serialize_status(status))
+    payload["feed_count"] = MAX_SAFE_JSON_INTEGER + 1
+    with pytest.raises(PrimitiveStatusError, match="status_counter_invalid"):
+        serialize_status(payload)
+
+    payload = json.loads(serialize_status(status))
+    payload["feeds"] = list(reversed(payload["feeds"]))
+    with pytest.raises(PrimitiveStatusError, match="feed_order_invalid"):
+        serialize_status(payload)

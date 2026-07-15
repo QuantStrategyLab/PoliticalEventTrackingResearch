@@ -10,6 +10,7 @@ from typing import Any
 
 STATUS_VERSION = "pert.feed_primitives.v1"
 MAX_ROWS_PER_FEED = 10_000
+MAX_SAFE_JSON_INTEGER = 2**53 - 1
 _ROW_KEYS = frozenset({"item_id", "published_at", "source_type", "source_url", "author", "text"})
 _FEED_KEYS = frozenset({"feed_id", "feed_url", "kind", "state", "rows", "error_code"})
 _FEED_WIRE_KEYS = frozenset(
@@ -61,6 +62,12 @@ def _digest(value: object) -> str:
 
 def _string(value: object, code: str, *, allow_empty: bool = True) -> str:
     if type(value) is not str or (not allow_empty and not value):
+        raise _fail(code)
+    return value
+
+
+def _safe_int(value: object, code: str) -> int:
+    if type(value) is not int or value < 0 or value > MAX_SAFE_JSON_INTEGER:
         raise _fail(code)
     return value
 
@@ -180,6 +187,8 @@ def build_status(feed_records: Iterable[Mapping[str, object]]) -> dict[str, obje
         raise _fail("configured_feed_empty")
     if len({item["feed_id"] for item in records}) != len(records):
         raise _fail("feed_duplicate")
+    if len(records) > MAX_SAFE_JSON_INTEGER:
+        raise _fail("feed_count_overflow")
     records.sort(key=lambda item: (item["feed_id"], item["feed_url"]))
     feeds = [_feed_wire(item) for item in records]
     accepted = sum(item["state"] == "accepted" for item in records)
@@ -221,7 +230,7 @@ def _validate_wire(value: object) -> dict[str, object]:
         "accepted_row_count",
         "rejected_row_count",
     )
-    if any(type(snapshot[key]) is not int or snapshot[key] < 0 for key in integer_keys):
+    if any(_safe_int(snapshot[key], "status_counter_invalid") != snapshot[key] for key in integer_keys):
         raise _fail("status_counter_invalid")
     if any(type(snapshot[key]) is not bool for key in ("publication_complete", "eligible_for_live_publication")):
         raise _fail("status_counter_invalid")
@@ -239,6 +248,7 @@ def _validate_wire(value: object) -> dict[str, object]:
         "rejected_row_count": 0,
     }
     feed_ids: set[str] = set()
+    feed_order: list[tuple[str, str]] = []
     for feed in snapshot["feeds"]:
         if not isinstance(feed, Mapping) or set(feed) != _FEED_WIRE_KEYS:
             raise _fail("feed_wire_shape_invalid")
@@ -251,11 +261,10 @@ def _validate_wire(value: object) -> dict[str, object]:
         if feed["feed_id"] in feed_ids:
             raise _fail("feed_duplicate")
         feed_ids.add(feed["feed_id"])
+        feed_order.append((feed["feed_id"], feed["feed_url"]))
         if (
-            type(feed["accepted_row_count"]) is not int
-            or feed["accepted_row_count"] < 0
-            or type(feed["rejected_row_count"]) is not int
-            or feed["rejected_row_count"] < 0
+            _safe_int(feed["accepted_row_count"], "feed_counter_invalid") != feed["accepted_row_count"]
+            or _safe_int(feed["rejected_row_count"], "feed_counter_invalid") != feed["rejected_row_count"]
         ):
             raise _fail("feed_counter_invalid")
         if not _is_digest(feed["row_digest"]):
@@ -275,6 +284,8 @@ def _validate_wire(value: object) -> dict[str, object]:
         expected_counts[f"{state if state != 'accepted' else 'successful'}_feed_count"] += 1
         expected_counts["accepted_row_count"] += feed["accepted_row_count"]
         expected_counts["rejected_row_count"] += feed["rejected_row_count"]
+    if feed_order != sorted(feed_order):
+        raise _fail("feed_order_invalid")
     if any(snapshot[key] != value for key, value in expected_counts.items()):
         raise _fail("status_counter_mismatch")
     complete = (

@@ -173,7 +173,7 @@ def write_fetch_status(path: str | Path, feed_records: list[dict[str, object]]) 
     payload = serialize_status(build_status(feed_records))
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(payload + b"\n")
+    output_path.write_bytes(payload)
 
 
 def fetch_rss_sources(
