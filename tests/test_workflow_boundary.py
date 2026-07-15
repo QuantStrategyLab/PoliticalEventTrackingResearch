@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 
 import pytest
 
@@ -29,6 +29,8 @@ def test_manual_guard_is_pure_and_strict() -> None:
         validate_manual_period("", "2026-07-19")
     with pytest.raises(WorkflowBoundaryError):
         validate_manual_period("2026-07-14", "2026-07-20")
+    with pytest.raises(WorkflowBoundaryError):
+        validate_manual_period("2026-07-20", "2026-07-26", run_created_at=datetime(2026, 7, 20, 0, 1, tzinfo=timezone.utc))
 
 
 def test_scheduled_run_uses_api_created_at_not_local_clock() -> None:
@@ -61,3 +63,11 @@ def test_scheduled_run_wrong_repository_fails_closed() -> None:
     payload = {**RUN, "head_repository": {"full_name": "other/repo"}}
     with pytest.raises(WorkflowBoundaryError):
         validate_scheduled_run(payload, run_id="12345", workflow_ref="QuantStrategyLab/PoliticalEventTrackingResearch/.github/workflows/rss_source_pipeline.yml@refs/heads/main")
+
+
+def test_manual_run_binds_current_run_created_at() -> None:
+    payload = {**RUN, "event": "workflow_dispatch"}
+    from political_event_tracking_research.workflow_boundary import validate_manual_run
+
+    evidence = validate_manual_run(payload, run_id="12345", workflow_ref="QuantStrategyLab/PoliticalEventTrackingResearch/.github/workflows/rss_source_pipeline.yml@refs/heads/main")
+    assert validate_manual_period("2026-07-13", "2026-07-19", run_created_at=evidence.created_at)[0] == date(2026, 7, 13)

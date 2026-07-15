@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from political_event_tracking_research.workflow_boundary import (  # noqa: E402
     WORKFLOW_REF,
     WorkflowBoundaryError,
+    validate_manual_run,
     validate_manual_period,
     validate_scheduled_run,
 )
@@ -37,18 +38,23 @@ def main() -> None:
     try:
         if args.run_attempt != 1:
             raise WorkflowBoundaryError("run_attempt_invalid")
-        if args.event == "schedule":
+        if args.event in {"schedule", "workflow_dispatch"}:
             if args.run_payload is None:
-                raise WorkflowBoundaryError("scheduled_run_payload_missing")
+                raise WorkflowBoundaryError("workflow_run_payload_missing")
             payload = json.loads(args.run_payload.read_text(encoding="utf-8"))
-            evidence = validate_scheduled_run(payload, run_id=args.run_id, workflow_ref=args.workflow_ref)
-            result = {
-                "period_start": evidence.period_start.isoformat(),
-                "period_end_exclusive": evidence.period_end_exclusive.isoformat(),
-                "as_of": evidence.as_of.isoformat(),
-                "scheduled_created_at": evidence.created_at.isoformat(timespec="seconds").replace("+00:00", "Z"),
-                "producer_ref": evidence.producer_ref,
-            }
+            if args.event == "schedule":
+                evidence = validate_scheduled_run(payload, run_id=args.run_id, workflow_ref=args.workflow_ref)
+                result = {
+                    "period_start": evidence.period_start.isoformat(),
+                    "period_end_exclusive": evidence.period_end_exclusive.isoformat(),
+                    "as_of": evidence.as_of.isoformat(),
+                    "scheduled_created_at": evidence.created_at.isoformat(timespec="seconds").replace("+00:00", "Z"),
+                    "producer_ref": evidence.producer_ref,
+                }
+            else:
+                evidence = validate_manual_run(payload, run_id=args.run_id, workflow_ref=args.workflow_ref)
+                start, as_of = validate_manual_period(args.period_start, args.as_of, run_created_at=evidence.created_at)
+                result = {"period_start": start.isoformat(), "period_end_exclusive": (start + timedelta(days=7)).isoformat(), "as_of": as_of.isoformat(), "producer_ref": evidence.producer_ref}
         else:
             start, as_of = validate_manual_period(args.period_start, args.as_of)
             if args.workflow_ref != WORKFLOW_REF or type(args.producer_ref) is not str or not _SHA_RE.fullmatch(args.producer_ref):

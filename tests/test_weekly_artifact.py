@@ -68,6 +68,16 @@ def test_malformed_event_date_and_tamper_fail_closed() -> None:
         parse_weekly_artifact(tampered)
 
 
+def test_source_snapshot_digest_is_recomputed_from_artifact_bytes() -> None:
+    files = build()
+    lock = json.loads(files["period_lock.json"])
+    lock["source_snapshot_digest"] = "b" * 64
+    files["period_lock.json"] = json.dumps(lock, sort_keys=True, separators=(",", ":")).encode()
+    with pytest.raises(WeeklyArtifactError) as error:
+        parse_weekly_artifact(files)
+    assert error.value.code == "source_snapshot_digest_mismatch"
+
+
 @pytest.mark.parametrize("feed", [status(complete=False), status(failed_feed_count=1, successful_feed_count=1), status(stale_feed_count=1), status(missing_feed_count=1)])
 def test_incomplete_feed_never_builds(feed: dict[str, object]) -> None:
     with pytest.raises(WeeklyArtifactError):

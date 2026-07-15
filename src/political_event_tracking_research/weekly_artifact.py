@@ -187,14 +187,14 @@ def build_weekly_artifact(*, period_start: date, as_of: date, generated_at: date
         raise _invalid("generated_at_invalid")
     if source_provenance != "official_rss_source_pipeline_v1" or run_mode not in {"scheduled", "manual"}:
         raise _invalid("producer_contract_invalid")
-    raw_digest = _snapshot_digest(source_events, watchlist)
     period_events = _filter_events(source_events, period_start, as_of)
+    source_snapshot_digest = _snapshot_digest(period_events, watchlist)
     event_count, _ = _csv_snapshot(period_events, EVENT_HEADER, "events_csv_invalid", allow_empty=True)
     watch_count, _ = _csv_snapshot(watchlist, WATCHLIST_HEADER, "watchlist_csv_invalid")
     status = _status(feed_status)
     snapshot_id = f"rss_source_snapshot_{as_of:%Y%m%d}_{source_run_id}"
     try:
-        lock = PoliticalEventWeeklyPeriodLockV1(period_start, period_end, as_of, workflow_ref, source_run_id, 1, producer_ref, snapshot_id, raw_digest, source_provenance, (SourceSnapshotArtifact(EVENTS_NAME, _sha256(period_events), event_count), SourceSnapshotArtifact(WATCHLIST_NAME, _sha256(watchlist), watch_count)))
+        lock = PoliticalEventWeeklyPeriodLockV1(period_start, period_end, as_of, workflow_ref, source_run_id, 1, producer_ref, snapshot_id, source_snapshot_digest, source_provenance, (SourceSnapshotArtifact(EVENTS_NAME, _sha256(period_events), event_count), SourceSnapshotArtifact(WATCHLIST_NAME, _sha256(watchlist), watch_count)))
         contract = WeeklySourceContract(as_of, period_start, period_end, generated_at, run_mode, producer_ref, source_provenance, (WeeklySourceArtifact(EVENTS_NAME, _sha256(period_events), event_count), WeeklySourceArtifact(WATCHLIST_NAME, _sha256(watchlist), watch_count)), status)
         files: dict[str, bytes] = {PERIOD_LOCK_NAME: serialize_period_lock(lock), EVENTS_NAME: period_events, WATCHLIST_NAME: watchlist, WEEKLY_NAME: serialize_weekly_contract(contract)}
     except (PeriodLockError, WeeklyContractError, TypeError, ValueError, OverflowError):
@@ -228,6 +228,8 @@ def parse_weekly_artifact(files: Mapping[str, bytes]) -> dict[str, bytes]:
     if tuple((item.path, item.sha256, item.row_count) for item in lock.source_artifacts) != expected or tuple((item.path, item.sha256, item.row_count) for item in contract.source_artifacts) != expected:
         raise _invalid("source_artifact_mismatch")
     expected_id = f"rss_source_snapshot_{contract.as_of:%Y%m%d}_{lock.source_run_id}"
+    if lock.source_snapshot_digest != _snapshot_digest(files[EVENTS_NAME], files[WATCHLIST_NAME]):
+        raise _invalid("source_snapshot_digest_mismatch")
     if lock.source_snapshot_id != expected_id or lock.source_attempt != 1 or lock.period_start != contract.period_start or lock.period_end_exclusive != contract.period_end_exclusive or lock.as_of != contract.as_of or lock.producer_ref != contract.producer_ref or lock.source_provenance != contract.source_provenance:
         raise _invalid("period_contract_mismatch")
     manifest_value = _parse_json(files[MANIFEST_NAME], "manifest_wire_invalid")

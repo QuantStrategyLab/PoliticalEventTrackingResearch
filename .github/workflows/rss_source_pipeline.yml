@@ -54,10 +54,18 @@ concurrency:
 
 jobs:
   build-rss-source-events:
+    if: >-
+      github.repository == 'QuantStrategyLab/PoliticalEventTrackingResearch' &&
+      github.ref == 'refs/heads/main' &&
+      github.workflow_ref == 'QuantStrategyLab/PoliticalEventTrackingResearch/.github/workflows/rss_source_pipeline.yml@refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
+        with:
+          repository: QuantStrategyLab/PoliticalEventTrackingResearch
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
@@ -71,19 +79,10 @@ jobs:
         run: |
           set -euo pipefail
           RUN_PAYLOAD="${RUNNER_TEMP}/pert-workflow-run.json"
-          if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
-            curl --fail --silent --show-error \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-              "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" > "${RUN_PAYLOAD}"
-          else
-            rm -f "${RUN_PAYLOAD}"
-          fi
-          if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
-            PAYLOAD_ARGS=(--run-payload "${RUN_PAYLOAD}")
-          else
-            PAYLOAD_ARGS=()
-          fi
+          curl --fail --silent --show-error \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" > "${RUN_PAYLOAD}"
           python scripts/validate_weekly_workflow.py \
             --event "${GITHUB_EVENT_NAME}" \
             --run-id "${GITHUB_RUN_ID}" \
@@ -92,7 +91,7 @@ jobs:
             --producer-ref "${GITHUB_SHA}" \
             --period-start "${PERIOD_START}" \
             --as-of "${AS_OF}" \
-            "${PAYLOAD_ARGS[@]}" \
+            --run-payload "${RUN_PAYLOAD}" \
             --output "${RUNNER_TEMP}/pert-period-context.json"
           python - <<'PY' "${RUNNER_TEMP}/pert-period-context.json" >> "${GITHUB_ENV}"
           import json, sys

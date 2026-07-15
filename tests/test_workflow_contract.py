@@ -10,6 +10,14 @@ def test_guard_and_legacy_upload_precede_weekly_build() -> None:
     assert text.index("Upload RSS source artifact") < text.index("Build completed weekly producer artifact")
 
 
+def test_privileged_job_has_server_side_main_gate_and_sha_checkout() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "github.ref == 'refs/heads/main'" in text
+    assert "github.workflow_ref == 'QuantStrategyLab/PoliticalEventTrackingResearch/.github/workflows/rss_source_pipeline.yml@refs/heads/main'" in text
+    assert "ref: ${{ github.sha }}" in text
+    assert "persist-credentials: false" in text
+
+
 def test_schedule_uses_actions_api_and_no_period_wall_clock() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     assert "actions: read" in text

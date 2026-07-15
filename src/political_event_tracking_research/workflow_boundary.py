@@ -48,7 +48,7 @@ def _parse_date(value: object, code: str) -> date:
     return parsed
 
 
-def validate_manual_period(period_start: object, as_of: object) -> tuple[date, date]:
+def validate_manual_period(period_start: object, as_of: object, *, run_created_at: datetime | None = None) -> tuple[date, date]:
     start = _parse_date(period_start, "manual_period_invalid")
     end = _parse_date(as_of, "manual_period_invalid")
     try:
@@ -57,6 +57,8 @@ def validate_manual_period(period_start: object, as_of: object) -> tuple[date, d
         raise _invalid("manual_period_invalid") from None
     if start.weekday() != 0 or end != expected_end - timedelta(days=1):
         raise _invalid("manual_period_mismatch")
+    if run_created_at is not None and (type(run_created_at) is not datetime or run_created_at.tzinfo != timezone.utc or expected_end > run_created_at.date()):
+        raise _invalid("manual_period_incomplete")
     return start, end
 
 
@@ -72,12 +74,12 @@ def _parse_created_at(value: object) -> datetime:
     return parsed
 
 
-def validate_scheduled_run(payload: Mapping[str, object], *, run_id: object, workflow_ref: object) -> ScheduledRunEvidence:
+def validate_workflow_run(payload: Mapping[str, object], *, run_id: object, workflow_ref: object, event: str) -> ScheduledRunEvidence:
     if not isinstance(payload, Mapping) or type(run_id) is not str or not _RUN_ID_RE.fullmatch(run_id) or workflow_ref != WORKFLOW_REF:
         raise _invalid("scheduled_run_identity_invalid")
     if type(payload.get("id")) is not int or payload["id"] != int(run_id):
         raise _invalid("scheduled_run_identity_invalid")
-    if type(payload.get("run_attempt")) is not int or payload["run_attempt"] != 1 or payload.get("event") != "schedule":
+    if type(payload.get("run_attempt")) is not int or payload["run_attempt"] != 1 or payload.get("event") != event:
         raise _invalid("scheduled_run_identity_invalid")
     if payload.get("path") != WORKFLOW_PATH or payload.get("head_branch") != "main":
         raise _invalid("scheduled_run_identity_invalid")
@@ -91,3 +93,11 @@ def validate_scheduled_run(payload: Mapping[str, object], *, run_id: object, wor
     current_monday = created_at.date() - timedelta(days=created_at.date().weekday())
     period_start = current_monday - timedelta(days=7)
     return ScheduledRunEvidence(period_start, current_monday, current_monday - timedelta(days=1), created_at, producer_ref)
+
+
+def validate_scheduled_run(payload: Mapping[str, object], *, run_id: object, workflow_ref: object) -> ScheduledRunEvidence:
+    return validate_workflow_run(payload, run_id=run_id, workflow_ref=workflow_ref, event="schedule")
+
+
+def validate_manual_run(payload: Mapping[str, object], *, run_id: object, workflow_ref: object) -> ScheduledRunEvidence:
+    return validate_workflow_run(payload, run_id=run_id, workflow_ref=workflow_ref, event="workflow_dispatch")
