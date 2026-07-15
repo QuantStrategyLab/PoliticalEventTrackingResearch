@@ -6,6 +6,7 @@ import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from enum import Enum
+from types import MappingProxyType
 
 
 STATUS_VERSION = "pert.feed_status_decision.v1"
@@ -62,7 +63,7 @@ class _Row:
 
 @dataclass(frozen=True)
 class StatusEvidence:
-    status: dict[str, object]
+    status: Mapping[str, object]
     canonical_bytes: bytes
 
 
@@ -133,8 +134,16 @@ def _parse_outcome(value: object) -> tuple[dict[str, object], list[_Row]]:
     return {"feed_id": feed_id, "feed_url": feed_url, "kind": kind, "state": state, "error_code": error}, rows
 
 
-def _row_key(row: _Row) -> tuple[str, str]:
-    return row.published_at, row.item_id
+def _row_key(row: _Row) -> tuple[str, ...]:
+    return tuple(getattr(row, key) for key in _ROW_KEYS)
+
+
+def _freeze(value: object) -> object:
+    if isinstance(value, dict):
+        return MappingProxyType({key: _freeze(child) for key, child in value.items()})
+    if isinstance(value, list):
+        return tuple(_freeze(child) for child in value)
+    return value
 
 
 def _digest(rows: list[_Row]) -> str:
@@ -216,7 +225,7 @@ def build_status_decision(outcomes: Iterable[Mapping[str, object]]) -> StatusDec
     if len(set(ids)) != len(ids):
         _fail("feed_duplicate")
     status = _build_status(parsed)
-    evidence = StatusEvidence(status, _canonical(status))
+    evidence = StatusEvidence(_freeze(status), _canonical(status))
     if status["failed_feed_count"]:
         kind = DecisionKind.HARD_FAIL
     elif status["quarantined_feed_count"]:

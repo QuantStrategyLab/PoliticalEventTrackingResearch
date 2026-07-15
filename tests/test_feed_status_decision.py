@@ -101,3 +101,20 @@ def test_wire_is_canonical_and_deterministic() -> None:
     second = build_status_decision([outcome("a", "accepted"), outcome("b", "accepted")])
     assert first.evidence.canonical_bytes == second.evidence.canonical_bytes
     assert json.loads(first.evidence.canonical_bytes)["feeds"][0]["feed_id"] == "a"
+
+
+def test_status_evidence_is_deeply_immutable_and_bound_to_bytes() -> None:
+    result = build_status_decision([outcome("a", "accepted")])
+    with pytest.raises(TypeError):
+        result.evidence.status["feed_count"] = 99
+    with pytest.raises(TypeError):
+        result.evidence.status["feeds"][0]["feed_id"] = "tampered"
+    assert json.loads(result.evidence.canonical_bytes)["feed_count"] == result.evidence.status["feed_count"]
+
+
+def test_digest_sort_is_total_for_equal_published_at_and_item_id() -> None:
+    first = {**ROW, "text": "first"}
+    second = {**ROW, "text": "second"}
+    left = build_status_decision([outcome("a", "accepted", rows=[first, second])])
+    right = build_status_decision([outcome("a", "accepted", rows=[second, first])])
+    assert left.evidence.canonical_bytes == right.evidence.canonical_bytes
