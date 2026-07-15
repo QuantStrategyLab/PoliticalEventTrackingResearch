@@ -31,6 +31,12 @@ _STATES = frozenset({"accepted", "failed", "stale", "missing", "quarantined"})
 _KINDS = frozenset({"rss", "atom", "unknown"})
 _SAFE_ERROR = re.compile(r"^[a-z][a-z0-9_]*$")
 _ATOM = "http://www.w3.org/2005/Atom"
+MAX_XML_BYTES = 1024 * 1024
+MAX_XML_DEPTH = 32
+MAX_XML_NODES = 10000
+MAX_XML_TEXT_BYTES = 256 * 1024
+MAX_XML_ATTRIBUTES = 128
+_FORBIDDEN_DECLARATION = re.compile(rb"<!\s*(?:doctype|entity|element|attlist|notation)\b|\b(?:system|public)\b", re.IGNORECASE)
 
 
 class FetchAcceptanceError(ValueError):
@@ -80,13 +86,41 @@ def _feed_result(feed_id: str, feed_url: str, kind: str, accepted: int, rejected
     return {"feed_id": feed_id, "feed_url": feed_url, "kind": kind, "accepted_row_count": accepted, "rejected_row_count": rejected, "state": state, "error_code": error_code}
 
 
+def _parse_bounded_xml(payload: bytes) -> ET.Element:
+    if type(payload) is not bytes:
+        raise _fail("feed_payload_invalid")
+    if len(payload) > MAX_XML_BYTES:
+        raise _fail("xml_oversize")
+    if _FORBIDDEN_DECLARATION.search(payload):
+        raise _fail("xml_forbidden_declaration")
+    try:
+        root = ET.fromstring(payload)
+    except (ET.ParseError, UnicodeError, ValueError, RecursionError):
+        raise _fail("xml_invalid") from None
+    nodes = 0
+    text_bytes = 0
+    stack: list[tuple[ET.Element, int]] = [(root, 1)]
+    while stack:
+        element, depth = stack.pop()
+        nodes += 1
+        if nodes > MAX_XML_NODES or depth > MAX_XML_DEPTH or len(element.attrib) > MAX_XML_ATTRIBUTES:
+            raise _fail("xml_structure_over_limit")
+        for text in (element.text, element.tail):
+            if text is not None:
+                text_bytes += len(text.encode("utf-8", errors="strict"))
+                if text_bytes > MAX_XML_TEXT_BYTES:
+                    raise _fail("xml_structure_over_limit")
+        stack.extend((child, depth + 1) for child in reversed(list(element)))
+    return root
+
+
 def classify_feed_payload(feed_id: str, feed_url: str, payload: bytes) -> dict[str, object]:
     if type(payload) is not bytes:
         raise _fail("feed_payload_invalid")
     try:
-        root = ET.fromstring(payload)
-    except (ET.ParseError, UnicodeError, ValueError):
-        return _feed_result(feed_id, feed_url, "unknown", 0, 0, "failed", "xml_invalid")
+        root = _parse_bounded_xml(payload)
+    except FetchAcceptanceError as error:
+        return _feed_result(feed_id, feed_url, "unknown", 0, 0, "failed", error.code)
     if root.tag == "rss":
         if root.attrib.get("version") not in {"2.0"}:
             return _feed_result(feed_id, feed_url, "unknown", 0, 0, "failed", "rss_schema_unsupported")
@@ -120,9 +154,15 @@ def _validate_feed_result(value: object) -> dict[str, object]:
     result = _feed_result(value["feed_id"], value["feed_url"], value["kind"], value["accepted_row_count"], value["rejected_row_count"], value["state"], value["error_code"])
     if result != dict(value):
         raise _fail("feed_result_noncanonical")
-    if result["state"] == "accepted" and (result["accepted_row_count"] <= 0 or result["rejected_row_count"] != 0 or result["error_code"] is not None):
+    state = result["state"]
+    accepted_rows = result["accepted_row_count"]
+    rejected_rows = result["rejected_row_count"]
+    error_code = result["error_code"]
+    if state == "accepted" and (accepted_rows <= 0 or rejected_rows != 0 or error_code is not None):
         raise _fail("feed_result_invalid")
-    if result["state"] == "quarantined" and not result["error_code"]:
+    if state in {"failed", "stale", "missing"} and (accepted_rows != 0 or rejected_rows != 0 or not error_code):
+        raise _fail("feed_result_invalid")
+    if state == "quarantined" and not error_code:
         raise _fail("feed_result_invalid")
     return result
 

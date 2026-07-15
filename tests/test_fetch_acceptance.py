@@ -87,3 +87,34 @@ def test_invalid_entry_is_counted_not_accepted() -> None:
     assert result["accepted_row_count"] == 0
     assert result["rejected_row_count"] == 1
     assert result["state"] == "quarantined"
+
+
+@pytest.mark.parametrize("declaration", ["<!DOCTYPE rss>", "<!doctype rss>", "<!  DOCTYPE rss>", "<!\nENTITY x \"x\">", "<!SYSTEM \"file:///tmp/x\">"])
+def test_forbidden_xml_declarations_are_sanitized(declaration: str) -> None:
+    result = classify_feed_payload("feed", "https://example.test/feed", (declaration + "<rss version='2.0'><channel/></rss>").encode())
+    assert result["state"] == "failed"
+    assert result["error_code"] == "xml_forbidden_declaration"
+
+
+def test_xml_size_depth_nodes_text_and_attributes_are_bounded() -> None:
+    assert classify_feed_payload("feed", "https://example.test/feed", RSS + b"x" * (1024 * 1024))["error_code"] == "xml_oversize"
+    deep = "<rss version='2.0'><channel>" + "<x>" * 40 + "</x>" * 40 + "</channel></rss>"
+    assert classify_feed_payload("feed", "https://example.test/feed", deep.encode())["error_code"] == "xml_structure_over_limit"
+    attrs = "<rss version='2.0' " + " ".join(f"a{i}='x'" for i in range(130)) + "><channel/></rss>"
+    assert classify_feed_payload("feed", "https://example.test/feed", attrs.encode())["error_code"] == "xml_structure_over_limit"
+
+
+@pytest.mark.parametrize(
+    "feed",
+    [
+        {"feed_id": "x", "feed_url": "u", "kind": "rss", "accepted_row_count": 0, "rejected_row_count": 0, "state": "failed", "error_code": None},
+        {"feed_id": "x", "feed_url": "u", "kind": "rss", "accepted_row_count": 1, "rejected_row_count": 0, "state": "failed", "error_code": "bad"},
+        {"feed_id": "x", "feed_url": "u", "kind": "rss", "accepted_row_count": 0, "rejected_row_count": 0, "state": "stale", "error_code": ""},
+        {"feed_id": "x", "feed_url": "u", "kind": "rss", "accepted_row_count": 0, "rejected_row_count": 0, "state": "missing", "error_code": None},
+        {"feed_id": "x", "feed_url": "u", "kind": "rss", "accepted_row_count": 1, "rejected_row_count": 0, "state": "accepted", "error_code": "bad"},
+        {"feed_id": "x", "feed_url": "u", "kind": "rss", "accepted_row_count": 0, "rejected_row_count": 0, "state": "quarantined", "error_code": None},
+    ],
+)
+def test_feed_state_row_and_error_invariants_are_strict(feed: dict[str, object]) -> None:
+    with pytest.raises(FetchAcceptanceError):
+        build_acceptance_status([feed])
