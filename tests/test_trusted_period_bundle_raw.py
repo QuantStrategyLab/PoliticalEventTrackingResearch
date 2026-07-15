@@ -135,6 +135,32 @@ def test_manifest_identity_fields_are_validated_before_reconstructed_equality() 
         verify_period_bundle(value, lock_bytes(), snapshot_bytes(), IDENTITY_BYTES, artifact())
 
 
+@pytest.mark.parametrize("attempt", [True, 1.0, 2**53, (1, 2)])
+def test_source_attempt_wire_type_is_exact(attempt: object) -> None:
+    value = snapshot_value()
+    value["source_attempt"] = attempt
+    raw = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    with pytest.raises(TrustedPeriodBundleError, match="bundle_snapshot_"):
+        build_period_bundle(lock_bytes(), raw, IDENTITY_BYTES, artifact())
+
+
+def test_hash_correct_semantic_snapshot_forgery_is_rejected() -> None:
+    forged = snapshot_value()
+    forged["source_snapshot_digest"] = "0" * 64
+    forged_bytes = json.dumps(forged, sort_keys=True, separators=(",", ":")).encode()
+    with pytest.raises(TrustedPeriodBundleError, match="bundle_snapshot_mismatch"):
+        verify_period_bundle(bundle(), lock_bytes(), forged_bytes, IDENTITY_BYTES, artifact())
+
+
+def test_manifest_source_attempt_type_is_exact() -> None:
+    value = bundle()
+    manifest = json.loads(value["manifest_bytes"])
+    manifest["source_attempt"] = True
+    value["manifest_bytes"] = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()
+    with pytest.raises(TrustedPeriodBundleError, match="bundle_manifest_"):
+        verify_period_bundle(value, lock_bytes(), snapshot_bytes(), IDENTITY_BYTES, artifact())
+
+
 @pytest.mark.parametrize("field", ["artifact", "identity", "lock_expected", "snapshot_expected"])
 def test_context_tamper_fails_closed(field: str) -> None:
     value = bundle()

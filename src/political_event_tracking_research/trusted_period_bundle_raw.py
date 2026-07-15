@@ -204,7 +204,7 @@ def _snapshot(raw: object) -> dict[str, object]:
     if snapshot["snapshot_version"] != SNAPSHOT_VERSION:
         raise _error("bundle_snapshot_version_invalid")
     _string(snapshot["source_run_id"], _RUN_ID_RE, "bundle_snapshot_run_invalid")
-    if snapshot["source_attempt"] != 1:
+    if type(snapshot["source_attempt"]) is not int or snapshot["source_attempt"] != 1:
         raise _error("bundle_snapshot_attempt_invalid")
     _string(snapshot["workflow_sha"], _SHA1_RE, "bundle_snapshot_workflow_invalid")
     _string(snapshot["producer_sha"], _SHA1_RE, "bundle_snapshot_producer_invalid")
@@ -324,6 +324,9 @@ def _manifest(value: object) -> dict[str, object]:
     _safe_int(parsed["artifact_id"], "bundle_manifest_invalid")
     if type(parsed["source_attempt"]) is not int or parsed["source_attempt"] != 1:
         raise _error("bundle_manifest_invalid")
+    _string(parsed["source_run_id"], _RUN_ID_RE, "bundle_manifest_invalid")
+    if parsed["lock_version"] != LOCK_VERSION or parsed["snapshot_version"] != SNAPSHOT_VERSION:
+        raise _error("bundle_manifest_version_invalid")
     if type(parsed["retention_days"]) is not int or not 1 <= parsed["retention_days"] <= 90:
         raise _error("bundle_manifest_invalid")
     if _canonical_json(parsed, "bundle_manifest_invalid") != value:
@@ -360,6 +363,14 @@ def _manifest_bytes(
     )
 
 
+def _validate_snapshot_binding(
+    snapshot: dict[str, object], lock: PoliticalEventWeeklyPeriodLockV1, reviewed_workflow_sha: str
+) -> None:
+    expected = _expected_snapshot(lock, reviewed_workflow_sha)
+    if snapshot != expected:
+        raise _error("bundle_snapshot_mismatch")
+
+
 def build_period_bundle(
     lock_bytes: object,
     snapshot_bytes: object,
@@ -376,7 +387,8 @@ def build_period_bundle(
         _expected_snapshot(lock, identity["reviewed_workflow_sha"]), "bundle_snapshot_invalid"
     )
     parsed_snapshot = _snapshot(snapshot_bytes)
-    if snapshot_bytes != expected_snapshot or parsed_snapshot != json.loads(expected_snapshot):
+    _validate_snapshot_binding(parsed_snapshot, lock, identity["reviewed_workflow_sha"])
+    if snapshot_bytes != expected_snapshot:
         raise _error("bundle_snapshot_mismatch")
     evidence = _artifact(artifact, lock.source_run_id)
     manifest = _manifest_bytes(lock, identity, evidence, lock_bytes, snapshot_bytes)
@@ -425,6 +437,8 @@ def verify_period_bundle(
         raise _error("bundle_lock_mismatch")
     if values["snapshot_bytes"] != expected_snapshot_bytes or actual_snapshot != expected_snapshot:
         raise _error("bundle_snapshot_mismatch")
+    _validate_snapshot_binding(expected_snapshot, expected_lock, expected_identity["reviewed_workflow_sha"])
+    _validate_snapshot_binding(actual_snapshot, actual_lock, manifest["reviewed_workflow_sha"])
     if actual_evidence != expected_evidence:
         raise _error("bundle_artifact_mismatch")
     if actual_lock.workflow_ref != TRUSTED_WORKFLOW_REF:
