@@ -23,6 +23,14 @@ on:
         required: false
         default: "50"
         type: string
+      period_start:
+        description: "Manual weekly period Monday UTC (YYYY-MM-DD)."
+        required: true
+        type: string
+      as_of:
+        description: "Manual weekly as_of Sunday UTC (YYYY-MM-DD)."
+        required: true
+        type: string
       commit_outputs:
         description: "Commit generated live CSV outputs back to data/live."
         required: false
@@ -32,7 +40,7 @@ on:
           - "false"
           - "true"
   schedule:
-    - cron: "15 12 * * 6"
+    - cron: "15 0 * * 1"
 
 permissions:
   contents: write
@@ -46,8 +54,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.11"
       - name: Install package
@@ -75,6 +83,47 @@ jobs:
             --watchlist "${WATCHLIST_PATH}" \
             --events data/output/rss_source_pipeline/source_events.csv \
             --output data/output/rss_source_pipeline/source_tracker.csv
+      - name: Build weekly contract artifact
+        env:
+          INPUT_PERIOD_START: ${{ inputs.period_start || '' }}
+          INPUT_AS_OF: ${{ inputs.as_of || '' }}
+          PRODUCER_REF: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            test -n "${INPUT_PERIOD_START}"
+            test -n "${INPUT_AS_OF}"
+            PERIOD_START="${INPUT_PERIOD_START}"
+            AS_OF="${INPUT_AS_OF}"
+            RUN_MODE=manual
+          else
+            RUN_DATE="$(date -u +%F)"
+            read -r PERIOD_START AS_OF < <(RUN_DATE="${RUN_DATE}" python3 - <<'PY'
+          import os
+          from datetime import date, timedelta
+
+          today = date.fromisoformat(os.environ["RUN_DATE"])
+          start = today - timedelta(days=today.weekday() + 7)
+          print(start.isoformat(), (start + timedelta(days=6)).isoformat())
+          PY
+            )
+            RUN_MODE=scheduled
+          fi
+          GENERATED_AT="$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)"
+          python scripts/write_weekly_artifact.py \
+            --base-dir . \
+            --output-dir data/output/rss_source_pipeline/weekly-artifact \
+            --feed-status data/output/rss_source_pipeline/source_fetch_status.json \
+            --period-start "${PERIOD_START}" \
+            --as-of "${AS_OF}" \
+            --generated-at "${GENERATED_AT}" \
+            --run-mode "${RUN_MODE}" \
+            --producer-ref "${PRODUCER_REF}" \
+            --source-provenance official_political_event_tracking_research_v1 \
+            data/output/rss_source_pipeline/source_items.csv \
+            data/output/rss_source_pipeline/source_events.csv \
+            data/output/rss_source_pipeline/source_tracker.csv \
+            data/output/rss_source_pipeline/source_fetch_status.json
       - name: Publish live CSV outputs to repository
         env:
           COMMIT_OUTPUTS: ${{ github.event_name == 'schedule' && 'true' || github.event.inputs.commit_outputs || 'false' }}
@@ -108,8 +157,15 @@ jobs:
             git push
           fi
       - name: Upload RSS source artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: rss-source-pipeline
           path: data/output/rss_source_pipeline/
           if-no-files-found: error
+      - name: Upload weekly contract artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: political-event-weekly-v1
+          path: data/output/rss_source_pipeline/weekly-artifact/weekly_manifest.json
+          if-no-files-found: error
+          retention-days: 30
