@@ -50,6 +50,12 @@ def test_parse_rss_feed_items_to_source_items() -> None:
     assert rows[0]["item_id"].startswith("whitehouse-test-")
 
 
+def test_blank_optional_author_remains_valid() -> None:
+    payload = b"<rss version='2.0'><channel><item><title>x</title></item></channel></rss>"
+    rows = parse_feed_items(payload, FeedConfig("x", "https://example.test", "official", ""))
+    assert rows[0]["author"] == ""
+
+
 def test_parse_atom_feed_items_to_source_items() -> None:
     feed_xml = b"""<?xml version="1.0"?>
     <feed xmlns="http://www.w3.org/2005/Atom">
@@ -206,6 +212,31 @@ def test_fetch_rss_sources_can_continue_and_write_status(tmp_path: Path) -> None
     assert payload["failed_feed_count"] == 1
     assert payload["feeds"][0]["feed_id"] == "bad"
     assert payload["feeds"][0]["error_code"] == "fetch_failed"
+
+
+def test_continue_on_feed_error_sanitizes_any_exception_but_not_base_exception(tmp_path: Path) -> None:
+    feeds_path = tmp_path / "feeds.csv"
+    feeds_path.write_text(
+        "feed_id,feed_url,source_type,author\n"
+        "bad,https://example.invalid/bad.xml,official_remarks,Example\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="all configured"):
+        fetch_rss_sources(
+            feeds_path,
+            tmp_path / "source_items.csv",
+            continue_on_feed_error=True,
+            status_output=tmp_path / "status.json",
+            fetcher=lambda _url: (_ for _ in ()).throw(RuntimeError("do not leak")),
+        )
+    assert "do not leak" not in (tmp_path / "status.json").read_text(encoding="utf-8")
+    with pytest.raises(KeyboardInterrupt):
+        fetch_rss_sources(
+            feeds_path,
+            tmp_path / "source_items.csv",
+            continue_on_feed_error=True,
+            fetcher=lambda _url: (_ for _ in ()).throw(KeyboardInterrupt()),
+        )
 
 
 def test_fetch_rss_sources_fails_when_all_feeds_fail(tmp_path: Path) -> None:

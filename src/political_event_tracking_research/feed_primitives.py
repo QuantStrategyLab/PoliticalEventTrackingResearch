@@ -68,8 +68,8 @@ def _mapping(value: object, keys: frozenset[str], code: str) -> dict[str, object
     return result
 
 
-def _text(value: object, code: str) -> str:
-    if type(value) is not str or not value or any(ord(char) < 0x20 for char in value):
+def _text(value: object, code: str, *, allow_empty: bool = False) -> str:
+    if type(value) is not str or (not allow_empty and not value) or any(ord(char) < 0x20 for char in value):
         _error(code)
     return value
 
@@ -92,7 +92,8 @@ class PrimitiveRow:
     @classmethod
     def from_mapping(cls, value: object) -> PrimitiveRow:
         data = _mapping(value, frozenset(_ROW_KEYS), "row_invalid")
-        return cls(*(_text(data[key], "row_invalid") for key in _ROW_KEYS))
+        values = [_text(data[key], "row_invalid", allow_empty=key == "author") for key in _ROW_KEYS]
+        return cls(*values)
 
     def to_mapping(self) -> dict[str, str]:
         return {key: getattr(self, key) for key in _ROW_KEYS}
@@ -243,6 +244,8 @@ def _validate_wire(value: object) -> dict[str, object]:
         if not _DIGEST.fullmatch(digest):
             _error("status_digest_invalid")
         error_code = item["error_code"]
+        if state == "accepted" and error_code is not None:
+            _error("feed_state_invalid")
         if error_code is None and state != "accepted":
             _error("feed_error_invalid")
         if error_code is not None and (type(error_code) is not str or not _ERROR.fullmatch(error_code)):

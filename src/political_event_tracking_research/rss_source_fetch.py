@@ -295,16 +295,7 @@ def fetch_rss_sources(
                 }
             )
             rows.extend(feed_rows)
-        except (
-            DefusedXmlException,
-            ET.ParseError,
-            LookupError,
-            OSError,
-            RuntimeError,
-            TypeError,
-            ValueError,
-            UnicodeError,
-        ) as exc:
+        except Exception as exc:
             code = getattr(exc, "code", "fetch_failed")
             if type(code) is not str or not re.fullmatch(r"[a-z][a-z0-9_]{0,63}", code):
                 code = "fetch_failed"

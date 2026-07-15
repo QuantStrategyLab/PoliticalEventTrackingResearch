@@ -66,6 +66,14 @@ def test_wire_rejects_unknown_kind_for_accepted_or_quarantined() -> None:
         serialize_status(payload)
 
 
+def test_wire_rejects_accepted_feed_with_error_code() -> None:
+    status = build_status([record("good")])
+    payload = json.loads(serialize_status(status))
+    payload["feeds"][0]["error_code"] = "unexpected"
+    with pytest.raises(PrimitiveStatusError, match="feed_state_invalid"):
+        serialize_status(payload)
+
+
 def test_wire_roundtrip_is_canonical() -> None:
     status = build_status([record("a"), record("empty", state="quarantined", rows=[], error_code="zero_entries")])
     wire = serialize_status(status)
