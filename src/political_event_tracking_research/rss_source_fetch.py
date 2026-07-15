@@ -9,6 +9,7 @@ import re
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
+from types import MappingProxyType
 from pathlib import Path
 
 import defusedxml.ElementTree as ET
@@ -55,10 +56,16 @@ class FeedXmlError(ValueError):
     """Sanitized producer-boundary XML failure."""
 
 
+def _is_foreign_tag(tag: object, namespace: str | None) -> bool:
+    if not isinstance(tag, str) or not tag.startswith("{"):
+        return False
+    return namespace is None or not tag.startswith("{" + namespace + "}")
+
+
 @dataclass(frozen=True)
 class ParsedFeed:
     feed_kind: str
-    entries: tuple[dict[str, str], ...]
+    entries: tuple[MappingProxyType, ...]
 
 
 def load_feed_config(path: str | Path) -> list[FeedConfig]:
@@ -182,7 +189,7 @@ def parse_feed_snapshot(feed_bytes: bytes, feed: FeedConfig, *, max_items: int =
                     "text": text,
                 }
             )
-        return ParsedFeed(kind, tuple(rows))
+        return ParsedFeed(kind, tuple(MappingProxyType(row) for row in rows))
 
     if root.tag == "rss":
         if root.attrib.get("version") != "2.0":
@@ -212,7 +219,12 @@ def parse_feed_snapshot(feed_bytes: bytes, feed: FeedConfig, *, max_items: int =
             "skipHours",
             "skipDays",
         }
-        if any(child.tag != "item" and child.tag not in rss_metadata for child in channel):
+        if any(
+            child.tag != "item"
+            and child.tag not in rss_metadata
+            and not _is_foreign_tag(child.tag, None)
+            for child in channel
+        ):
             raise FeedXmlError("feed_schema_invalid")
         try:
             return parse_rows([child for child in channel if child.tag == "item"], "rss2")
@@ -235,7 +247,12 @@ def parse_feed_snapshot(feed_bytes: bytes, feed: FeedConfig, *, max_items: int =
             "{http://www.w3.org/2005/Atom}logo",
             "{http://www.w3.org/2005/Atom}rights",
         }
-        if any(child.tag != atom_entry and child.tag not in atom_metadata for child in root):
+        if any(
+            child.tag != atom_entry
+            and child.tag not in atom_metadata
+            and not _is_foreign_tag(child.tag, "http://www.w3.org/2005/Atom")
+            for child in root
+        ):
             raise FeedXmlError("feed_schema_invalid")
         try:
             return parse_rows([child for child in root if child.tag == atom_entry], "atom")
@@ -246,7 +263,7 @@ def parse_feed_snapshot(feed_bytes: bytes, feed: FeedConfig, *, max_items: int =
 
 
 def parse_feed_items(feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25) -> list[dict[str, str]]:
-    return list(parse_feed_snapshot(feed_bytes, feed, max_items=max_items).entries)
+    return [dict(row) for row in parse_feed_snapshot(feed_bytes, feed, max_items=max_items).entries]
 
 
 def utc_now_iso() -> str:

@@ -103,6 +103,21 @@ def test_near_match_roots_and_containers_fail_closed(payload: bytes) -> None:
         parse_feed_snapshot(payload, FeedConfig("x", "https://example.test", "official", ""))
 
 
+def test_foreign_namespaced_metadata_is_allowed_without_relaxing_container_grammar() -> None:
+    rss = b"<rss version='2.0'><channel><x:source xmlns:x='urn:example'/></channel></rss>"
+    atom = b"<feed xmlns='http://www.w3.org/2005/Atom'><x:source xmlns:x='urn:example'/></feed>"
+    feed = FeedConfig("x", "https://example.test", "official", "")
+    assert parse_feed_snapshot(rss, feed).feed_kind == "rss2"
+    assert parse_feed_snapshot(atom, feed).feed_kind == "atom"
+
+
+def test_parsed_entries_are_shallow_immutable() -> None:
+    payload = b"<rss version='2.0'><channel><item><title>x</title></item></channel></rss>"
+    parsed = parse_feed_snapshot(payload, FeedConfig("x", "https://example.test", "official", ""))
+    with pytest.raises(TypeError):
+        parsed.entries[0]["text"] = "changed"
+
+
 @pytest.mark.parametrize(
     "payload",
     [

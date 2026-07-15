@@ -82,6 +82,16 @@ def test_safe_integer_and_bool_are_rejected() -> None:
     payload["feed_count"] = MAX_SAFE_JSON_INTEGER + 1
     with pytest.raises(PrimitiveStatusError, match="status_counter_invalid"):
         serialize_status(payload)
+
+
+def test_wire_rejects_duplicate_feed_id_with_different_urls() -> None:
+    status = build_status([feed("a"), feed("b")])
+    payload = json.loads(serialize_status(status))
+    payload["feeds"][1]["feed_id"] = "a"
+    payload["feeds"][1]["feed_url"] = "https://example.test/other"
+    payload["feeds"] = sorted(payload["feeds"], key=lambda item: (item["feed_id"], item["feed_url"]))
+    with pytest.raises(PrimitiveStatusError, match="feed_duplicate"):
+        serialize_status(payload)
     payload["feed_count"] = True
     with pytest.raises(PrimitiveStatusError, match="status_counter_invalid"):
         serialize_status(payload)

@@ -215,9 +215,13 @@ def _validate_wire(value: object) -> dict[str, object]:
     if not isinstance(feeds, list):
         _fail("feed_invalid")
     previous: tuple[str, str] | None = None
+    feed_ids: set[str] = set()
     for feed in feeds:
         item = _mapping(feed, _FEED_WIRE_KEYS, "feed_invalid")
         key = (_exact_str(item["feed_id"], "feed_invalid"), _exact_str(item["feed_url"], "feed_invalid"))
+        if key[0] in feed_ids:
+            _fail("feed_duplicate")
+        feed_ids.add(key[0])
         if previous is not None and key <= previous:
             _fail("feed_order_invalid")
         previous = key
