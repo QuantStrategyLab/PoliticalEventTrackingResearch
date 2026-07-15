@@ -31,13 +31,13 @@ def main() -> None:
     try:
         payload = json.loads(args.run_payload.read_text(encoding="utf-8"))
         if args.event == "schedule":
-            evidence = validate_scheduled_run(payload, run_id=args.run_id, workflow_ref=args.workflow_ref)
+            evidence = validate_scheduled_run(payload, run_id=args.run_id, workflow_ref=args.workflow_ref, run_attempt=args.run_attempt)
             start, end, as_of = evidence.period_start, evidence.period_end_exclusive, evidence.as_of
         else:
-            evidence = validate_manual_run(payload, run_id=args.run_id, workflow_ref=args.workflow_ref)
+            evidence = validate_manual_run(payload, run_id=args.run_id, workflow_ref=args.workflow_ref, run_attempt=args.run_attempt)
             start, as_of = validate_manual_period(args.period_start, args.as_of, run_created_at=evidence.created_at)
             end = start.fromordinal(start.toordinal() + 7)
-        args.output.write_text(json.dumps({"period_start": start.isoformat(), "period_end_exclusive": end.isoformat(), "as_of": as_of.isoformat(), "producer_ref": evidence.producer_ref}, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+        args.output.write_text(json.dumps({"period_start": start.isoformat(), "period_end_exclusive": end.isoformat(), "as_of": as_of.isoformat(), "producer_ref": evidence.producer_ref, "source_attempt": evidence.run_attempt}, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
     except WorkflowBoundaryError as error:
         raise SystemExit(error.code) from None
     except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError):

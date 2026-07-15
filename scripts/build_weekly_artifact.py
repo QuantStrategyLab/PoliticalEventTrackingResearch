@@ -20,6 +20,7 @@ def main() -> None:
     parser.add_argument("--generated-at", required=True)
     parser.add_argument("--workflow-ref", required=True)
     parser.add_argument("--source-run-id", required=True)
+    parser.add_argument("--source-attempt", required=True, type=int)
     parser.add_argument("--producer-ref", required=True)
     parser.add_argument("--source-events", required=True, type=Path)
     parser.add_argument("--watchlist", required=True, type=Path)
@@ -34,6 +35,7 @@ def main() -> None:
             generated_at=datetime.fromisoformat(args.generated_at.replace("Z", "+00:00")),
             workflow_ref=args.workflow_ref,
             source_run_id=args.source_run_id,
+            source_attempt=args.source_attempt,
             producer_ref=args.producer_ref,
             source_events=args.source_events.read_bytes(),
             watchlist=args.watchlist.read_bytes(),

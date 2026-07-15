@@ -60,6 +60,7 @@ jobs:
       period_end_exclusive: ${{ steps.guard.outputs.period_end_exclusive }}
       as_of: ${{ steps.guard.outputs.as_of }}
       producer_ref: ${{ steps.guard.outputs.producer_ref }}
+      source_attempt: ${{ steps.guard.outputs.source_attempt }}
     steps:
       - name: Validate run identity and period before checkout
         id: guard
@@ -91,7 +92,8 @@ jobs:
           payload = json.load(open(sys.argv[1], encoding="utf-8"))
           if os.environ["WORKFLOW_REF"] != expected_ref or os.environ["GITHUB_REF"] != "refs/heads/main":
               raise SystemExit("workflow_identity_invalid")
-          if payload.get("id") != int(os.environ["RUN_ID"]) or type(payload.get("run_attempt")) is not int or payload["run_attempt"] != 1:
+          attempt = int(os.environ["RUN_ATTEMPT"])
+          if not 1 <= attempt <= 9007199254740991 or payload.get("id") != int(os.environ["RUN_ID"]) or type(payload.get("run_attempt")) is not int or payload["run_attempt"] != attempt:
               raise SystemExit("workflow_identity_invalid")
           if payload.get("event") != os.environ["EVENT_NAME"] or payload.get("path") != expected_path or payload.get("head_branch") != "main":
               raise SystemExit("workflow_identity_invalid")
@@ -109,7 +111,7 @@ jobs:
           as_of = end - timedelta(days=1)
           if os.environ["EVENT_NAME"] == "workflow_dispatch" and (os.environ["PERIOD_START"], os.environ["AS_OF"]) != (start.isoformat(), as_of.isoformat()):
               raise SystemExit("manual_period_not_immediate_prior")
-          for key, value in (("period_start", start.isoformat()), ("period_end_exclusive", end.isoformat()), ("as_of", as_of.isoformat()), ("producer_ref", producer_ref)):
+          for key, value in (("period_start", start.isoformat()), ("period_end_exclusive", end.isoformat()), ("as_of", as_of.isoformat()), ("producer_ref", producer_ref), ("source_attempt", str(attempt))):
               with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
                   output.write(f"{key}={value}\n")
           PY
@@ -145,6 +147,7 @@ jobs:
       - name: Publish live CSV outputs to repository
         env:
           COMMIT_OUTPUTS: ${{ github.event_name == 'schedule' && 'true' || github.event.inputs.commit_outputs || 'false' }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if [ "${COMMIT_OUTPUTS}" != "true" ]; then echo "Live output commit disabled."; exit 0; fi
@@ -158,7 +161,17 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/live
-          if git diff --cached --quiet; then echo "No live RSS output changes to commit."; else git commit -m "Update live RSS source events [skip ci]"; git push; fi
+          if git diff --cached --quiet; then
+            echo "No live RSS output changes to commit."
+          else
+            git commit -m "Update live RSS source events [skip ci]"
+            git config --local http.https://github.com/.extraheader "AUTHORIZATION: bearer ${GITHUB_TOKEN}"
+            cleanup_git_auth() { git config --local --unset-all http.https://github.com/.extraheader >/dev/null 2>&1 || true; }
+            trap cleanup_git_auth EXIT
+            git push
+            cleanup_git_auth
+            trap - EXIT
+          fi
       - name: Upload RSS source artifact
         uses: actions/upload-artifact@v7
         with:
@@ -172,7 +185,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p data/output/political-event-weekly-v1
-          python scripts/build_weekly_artifact.py --period-start "${{ needs.validate-run-boundary.outputs.period_start }}" --as-of "${{ needs.validate-run-boundary.outputs.as_of }}" --generated-at "$(date -u +%Y-%m-%dT%H:%M:%S.000000Z)" --workflow-ref "${GITHUB_WORKFLOW_REF}" --source-run-id "${GITHUB_RUN_ID}" --producer-ref "${{ needs.validate-run-boundary.outputs.producer_ref }}" --source-events data/output/rss_source_pipeline/source_events.csv --watchlist "${WATCHLIST_PATH}" --feed-status data/output/rss_source_pipeline/source_fetch_status.json --output-dir data/output/political-event-weekly-v1 --run-mode "${RUN_MODE}"
+          python scripts/build_weekly_artifact.py --period-start "${{ needs.validate-run-boundary.outputs.period_start }}" --as-of "${{ needs.validate-run-boundary.outputs.as_of }}" --generated-at "$(date -u +%Y-%m-%dT%H:%M:%S.000000Z)" --workflow-ref "${GITHUB_WORKFLOW_REF}" --source-run-id "${GITHUB_RUN_ID}" --source-attempt "${{ needs.validate-run-boundary.outputs.source_attempt }}" --producer-ref "${{ needs.validate-run-boundary.outputs.producer_ref }}" --source-events data/output/rss_source_pipeline/source_events.csv --watchlist "${WATCHLIST_PATH}" --feed-status data/output/rss_source_pipeline/source_fetch_status.json --output-dir data/output/political-event-weekly-v1 --run-mode "${RUN_MODE}"
       - name: Upload political weekly artifact
         uses: actions/upload-artifact@v7
         with:

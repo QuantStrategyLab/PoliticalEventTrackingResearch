@@ -128,7 +128,7 @@ class PoliticalEventWeeklyPeriodLockV1:
         _workflow_ref(self.workflow_ref)
         if type(self.source_run_id) is not str or not _RUN_ID_RE.fullmatch(self.source_run_id):
             raise _invalid("source_run_id_invalid")
-        if type(self.source_attempt) is not int or self.source_attempt != 1:
+        if type(self.source_attempt) is not int or not 1 <= self.source_attempt <= MAX_SAFE_JSON_INTEGER:
             raise _invalid("source_attempt_invalid")
         if type(self.producer_ref) is not str or not _SHA1_RE.fullmatch(self.producer_ref):
             raise _invalid("producer_ref_invalid")

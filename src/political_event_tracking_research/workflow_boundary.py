@@ -27,6 +27,7 @@ class WorkflowRunEvidence:
     as_of: date
     created_at: datetime
     producer_ref: str
+    run_attempt: int
 
 
 def _fail(code: str) -> WorkflowBoundaryError:
@@ -80,12 +81,12 @@ def validate_manual_period(period_start: object, as_of: object, *, run_created_a
     return start, expected_as_of
 
 
-def _validate_run(payload: Mapping[str, object], *, run_id: object, workflow_ref: object, event: str) -> WorkflowRunEvidence:
+def _validate_run(payload: Mapping[str, object], *, run_id: object, workflow_ref: object, event: str, run_attempt: object = 1) -> WorkflowRunEvidence:
     if not isinstance(payload, Mapping) or type(run_id) is not str or not _RUN_ID.fullmatch(run_id) or workflow_ref != WORKFLOW_REF:
         raise _fail("workflow_identity_invalid")
     if type(payload.get("id")) is not int or payload["id"] != int(run_id):
         raise _fail("workflow_identity_invalid")
-    if type(payload.get("run_attempt")) is not int or payload["run_attempt"] != 1 or payload.get("event") != event:
+    if type(run_attempt) is not int or not 1 <= run_attempt <= 2**53 - 1 or type(payload.get("run_attempt")) is not int or payload["run_attempt"] != run_attempt or payload.get("event") != event:
         raise _fail("workflow_identity_invalid")
     if payload.get("path") != WORKFLOW_PATH or payload.get("head_branch") != "main":
         raise _fail("workflow_identity_invalid")
@@ -97,12 +98,12 @@ def _validate_run(payload: Mapping[str, object], *, run_id: object, workflow_ref
         raise _fail("workflow_identity_invalid")
     created_at = _created_at(payload.get("created_at"))
     start, end, as_of = _previous_week(created_at)
-    return WorkflowRunEvidence(start, end, as_of, created_at, producer_ref)
+    return WorkflowRunEvidence(start, end, as_of, created_at, producer_ref, run_attempt)
 
 
-def validate_scheduled_run(payload: Mapping[str, object], *, run_id: object, workflow_ref: object) -> WorkflowRunEvidence:
-    return _validate_run(payload, run_id=run_id, workflow_ref=workflow_ref, event="schedule")
+def validate_scheduled_run(payload: Mapping[str, object], *, run_id: object, workflow_ref: object, run_attempt: object = 1) -> WorkflowRunEvidence:
+    return _validate_run(payload, run_id=run_id, workflow_ref=workflow_ref, event="schedule", run_attempt=run_attempt)
 
 
-def validate_manual_run(payload: Mapping[str, object], *, run_id: object, workflow_ref: object) -> WorkflowRunEvidence:
-    return _validate_run(payload, run_id=run_id, workflow_ref=workflow_ref, event="workflow_dispatch")
+def validate_manual_run(payload: Mapping[str, object], *, run_id: object, workflow_ref: object, run_attempt: object = 1) -> WorkflowRunEvidence:
+    return _validate_run(payload, run_id=run_id, workflow_ref=workflow_ref, event="workflow_dispatch", run_attempt=run_attempt)

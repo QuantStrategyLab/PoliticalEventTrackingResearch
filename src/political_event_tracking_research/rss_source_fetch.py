@@ -178,6 +178,9 @@ def write_fetch_status(path: str | Path, statuses: list[FeedFetchStatus], *, ite
         "feed_count": len(statuses),
         "successful_feed_count": sum(1 for item in statuses if item.ok),
         "failed_feed_count": sum(1 for item in statuses if not item.ok),
+        "stale_feed_count": 0,
+        "missing_feed_count": 0,
+        "complete": all(item.ok for item in statuses),
         "item_count": item_count,
         "feeds": [item.to_json() for item in statuses],
     }

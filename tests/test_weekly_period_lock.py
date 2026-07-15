@@ -82,7 +82,6 @@ def test_direct_value_object_canonicalizes_artifacts() -> None:
         ("period_end_exclusive", "2026-07-14"),
         ("as_of", "2026-07-11"),
         ("calendar", "utc_calendar_day"),
-        ("source_attempt", 2),
         ("source_snapshot_digest", "not-a-digest"),
         ("producer_ref", "A" * 40),
     ],
@@ -96,6 +95,11 @@ def test_period_identity_and_original_attempt_are_strict(field: str, value: obje
 def test_source_attempt_rejects_unsafe_integer_shapes(value: object) -> None:
     with pytest.raises(PeriodLockError):
         parse_period_lock(payload(source_attempt=value))
+
+
+@pytest.mark.parametrize("value", [1, 2, 3, 2**53 - 1])
+def test_source_attempt_accepts_safe_positive_integer(value: int) -> None:
+    assert parse_period_lock(payload(source_attempt=value)).source_attempt == value
 
 
 @pytest.mark.parametrize("path", ["", "/data/a.csv", "./a.csv", "a/../b.csv", "a//b.csv", "a\\b.csv", "é.csv", "a\n.csv"])

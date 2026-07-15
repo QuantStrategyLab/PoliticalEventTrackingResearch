@@ -27,12 +27,18 @@ EVENTS = (
 )
 WATCHLIST = b"symbol,name,bucket,research_status,thesis,source_url\nAAPL,Apple,watch,active,thesis,https://example.test/aapl\n"
 STATUS = {
+    "generated_at": "2026-07-13T12:45:00Z",
     "feed_count": 2,
     "successful_feed_count": 2,
     "failed_feed_count": 0,
     "stale_feed_count": 0,
     "missing_feed_count": 0,
     "complete": True,
+    "item_count": 1,
+    "feeds": [
+        {"feed_id": "one", "feed_url": "https://example.test/one", "ok": True, "item_count": 1, "error": ""},
+        {"feed_id": "two", "feed_url": "https://example.test/two", "ok": True, "item_count": 0, "error": ""},
+    ],
 }
 
 
@@ -80,8 +86,10 @@ def test_manual_identity_mismatch_fails_before_period_validation() -> None:
 
 
 def test_attempt_two_and_wrong_workflow_fail_closed() -> None:
+    evidence = validate_scheduled_run({**run_payload(attempt=2), "event": "schedule"}, run_id="123", workflow_ref=WORKFLOW_REF, run_attempt=2)
+    assert evidence.run_attempt == 2
     with pytest.raises(WorkflowBoundaryError):
-        validate_scheduled_run({**run_payload(attempt=2), "event": "schedule"}, run_id="123", workflow_ref=WORKFLOW_REF)
+        validate_scheduled_run({**run_payload(attempt=2), "event": "schedule"}, run_id="123", workflow_ref=WORKFLOW_REF, run_attempt=3)
     with pytest.raises(WorkflowBoundaryError):
         validate_scheduled_run({**run_payload(), "event": "schedule"}, run_id="123", workflow_ref="wrong")
 
@@ -112,6 +120,12 @@ def test_artifact_is_exact_five_files_and_round_trips() -> None:
     assert manifest["as_of"] == "2026-07-12"
 
 
+def test_attempt_is_bound_in_lock_and_manifest() -> None:
+    files = _build(source_attempt=3)
+    assert json.loads(files["period_lock.json"])["source_attempt"] == 3
+    assert json.loads(files["weekly_manifest.json"])["source_attempt"] == 3
+
+
 def test_out_of_period_rows_are_filtered_but_malformed_dates_fail() -> None:
     source = EVENTS + b"old,2026-07-05,MSFT,mention,neutral,high,https://example.test/old,note\n"
     assert b"old," not in _build(source_events=source)["political_events.csv"]
@@ -136,9 +150,20 @@ def test_manifest_tamper_and_file_set_fail_closed() -> None:
         parse_weekly_artifact({**files, "extra": b"x"})
 
 
+@pytest.mark.parametrize("change", [{"complete": None}, {"unexpected": 1}, {"failed_feed_count": 1}])
+def test_fetch_status_shape_is_exact_and_complete(change: dict[str, object]) -> None:
+    status = dict(STATUS)
+    status.update(change)
+    with pytest.raises(WeeklyArtifactError):
+        _build(feed_status=status)
+
+
 def test_workflow_guard_and_legacy_upload_precede_weekly_build() -> None:
     workflow = Path(__file__).parents[1].joinpath(".github/workflows/rss_source_pipeline.yml").read_text(encoding="utf-8")
     assert workflow.index("Validate run identity and period before checkout") < workflow.index("actions/checkout@")
     assert workflow.index("Upload RSS source artifact") < workflow.index("Build completed weekly producer artifact")
+    assert 'git config --local http.https://github.com/.extraheader' in workflow
+    assert 'git config --local --unset-all http.https://github.com/.extraheader' in workflow
+    assert 'echo "${GITHUB_TOKEN}"' not in workflow
     assert "github.event.inputs.period_start || ''" in workflow
     assert "manual_period_not_immediate_prior" in workflow
