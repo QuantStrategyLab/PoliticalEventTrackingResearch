@@ -10,6 +10,7 @@ from political_event_tracking_research.weekly_manifest import (
     MANIFEST_TYPE,
     build_weekly_manifest,
     parse_weekly_manifest,
+    parse_weekly_manifest_bytes,
     serialize_weekly_manifest,
     validate_weekly_manifest,
     write_weekly_manifest,
@@ -36,6 +37,19 @@ def test_weekly_manifest_is_deterministic_and_round_trips():
     encoded = serialize_weekly_manifest(contract)
     assert encoded == serialize_weekly_manifest(parse_weekly_manifest(json.loads(encoded)))
     assert parse_weekly_manifest(manifest) == contract
+    assert parse_weekly_manifest_bytes(encoded) == contract
+
+
+@pytest.mark.parametrize("wire", [
+    lambda encoded: b" " + encoded,
+    lambda encoded: encoded.replace(b'"contract":', b'"contract" :'),
+    lambda encoded: encoded.replace(b'"manifest_type":', b'"manifest_type":"x","manifest_type":'),
+])
+def test_manifest_wire_must_be_exact_canonical_bytes(wire):
+    contract = parse_weekly_contract(contract_payload())
+    encoded = serialize_weekly_manifest(contract)
+    with pytest.raises(WeeklyContractError):
+        parse_weekly_manifest_bytes(wire(encoded))
 
 
 @pytest.mark.parametrize("field,value", [
@@ -49,6 +63,14 @@ def test_manifest_contract_tamper_is_rejected(field, value):
     contract = parse_weekly_contract(contract_payload())
     manifest = build_weekly_manifest(contract)
     manifest["contract"][field] = value
+    with pytest.raises(WeeklyContractError):
+        validate_weekly_manifest(manifest, contract)
+
+
+def test_mapping_with_alias_or_unknown_shape_fails_closed():
+    contract = parse_weekly_contract(contract_payload())
+    manifest = build_weekly_manifest(contract)
+    manifest["contract"]["generatedAt"] = manifest["contract"].pop("generated_at")
     with pytest.raises(WeeklyContractError):
         validate_weekly_manifest(manifest, contract)
 

@@ -30,12 +30,40 @@ def parse_weekly_manifest(value: Mapping[str, object]) -> WeeklySourceContract:
     return parse_weekly_contract(contract)
 
 
+def parse_weekly_manifest_bytes(wire: bytes) -> WeeklySourceContract:
+    if type(wire) is not bytes:
+        raise WeeklyContractError("manifest_wire_invalid")
+
+    def pairs(items: list[tuple[str, object]]) -> dict[str, object]:
+        result: dict[str, object] = {}
+        for key, item in items:
+            if key in result:
+                raise WeeklyContractError("manifest_duplicate_key")
+            result[key] = item
+        return result
+
+    try:
+        value = json.loads(wire.decode("utf-8"), object_pairs_hook=pairs)
+    except WeeklyContractError:
+        raise
+    except (UnicodeError, json.JSONDecodeError, TypeError, ValueError, RecursionError):
+        raise WeeklyContractError("manifest_wire_invalid") from None
+    if not isinstance(value, Mapping):
+        raise WeeklyContractError("manifest_shape_invalid")
+    contract = parse_weekly_manifest(value)
+    if serialize_weekly_manifest(contract) != wire:
+        raise WeeklyContractError("manifest_noncanonical")
+    return contract
+
+
 def validate_weekly_manifest(value: Mapping[str, object], expected: WeeklySourceContract) -> WeeklySourceContract:
     if not isinstance(expected, WeeklySourceContract):
         raise WeeklyContractError("manifest_expected_invalid")
     parsed = parse_weekly_manifest(value)
     if parsed != expected:
         raise WeeklyContractError("manifest_contract_mismatch")
+    if build_weekly_manifest(parsed) != dict(value):
+        raise WeeklyContractError("manifest_noncanonical")
     return parsed
 
 
