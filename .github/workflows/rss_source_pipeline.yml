@@ -42,11 +42,39 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate-workflow-boundary:
+    if: >-
+      github.repository == 'QuantStrategyLab/PoliticalEventTrackingResearch' &&
+      github.ref == 'refs/heads/main' &&
+      github.workflow_ref == 'QuantStrategyLab/PoliticalEventTrackingResearch/.github/workflows/rss_source_pipeline.yml@refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate canonical workflow inputs
+        env:
+          FEEDS_PATH: ${{ github.event.inputs.feeds_path || 'config/free_rss_feeds.csv' }}
+          ALIASES_PATH: ${{ github.event.inputs.aliases_path || 'config/core_us_equity_aliases.csv' }}
+          WATCHLIST_PATH: ${{ github.event.inputs.watchlist_path || 'data/live/political_watchlist.csv' }}
+        run: |
+          set -euo pipefail
+          test "${FEEDS_PATH}" = "config/free_rss_feeds.csv"
+          test "${ALIASES_PATH}" = "config/core_us_equity_aliases.csv"
+          test "${WATCHLIST_PATH}" = "data/live/political_watchlist.csv"
+
   build-rss-source-events:
+    needs: validate-workflow-boundary
+    if: needs.validate-workflow-boundary.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
+        with:
+          repository: QuantStrategyLab/PoliticalEventTrackingResearch
+          ref: refs/heads/main
+          persist-credentials: false
+      - name: Verify reviewed main checkout
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "${EXPECTED_SHA}"
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
@@ -61,29 +89,47 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p data/output/rss_source_pipeline
+          fetch_exit=0
           python scripts/fetch_rss_sources.py \
             --feeds "${FEEDS_PATH}" \
             --output data/output/rss_source_pipeline/source_items.csv \
             --max-items-per-feed "${MAX_ITEMS_PER_FEED}" \
             --continue-on-feed-error \
-            --status-output data/output/rss_source_pipeline/source_fetch_status.json
-          python scripts/extract_source_mentions.py \
-            --raw-items data/output/rss_source_pipeline/source_items.csv \
-            --aliases "${ALIASES_PATH}" \
-            --output data/output/rss_source_pipeline/source_events.csv
-          python scripts/build_tracker.py \
-            --watchlist "${WATCHLIST_PATH}" \
-            --events data/output/rss_source_pipeline/source_events.csv \
-            --output data/output/rss_source_pipeline/source_tracker.csv
+            --status-output data/output/rss_source_pipeline/source_fetch_status.json || fetch_exit=$?
+          if [ -f data/output/rss_source_pipeline/source_items.csv ]; then
+            python scripts/extract_source_mentions.py \
+              --raw-items data/output/rss_source_pipeline/source_items.csv \
+              --aliases "${ALIASES_PATH}" \
+              --output data/output/rss_source_pipeline/source_events.csv
+            python scripts/build_tracker.py \
+              --watchlist "${WATCHLIST_PATH}" \
+              --events data/output/rss_source_pipeline/source_events.csv \
+              --output data/output/rss_source_pipeline/source_tracker.csv
+          fi
+          printf '%s\n' "${fetch_exit}" > data/output/rss_source_pipeline/fetch_exit.txt
+
+      - name: Upload RSS source artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: rss-source-pipeline
+          path: data/output/rss_source_pipeline/
+          if-no-files-found: error
+
+      - name: Validate canonical feed status readback
+        run: python scripts/validate_fetch_status.py --status data/output/rss_source_pipeline/source_fetch_status.json --fetch-exit data/output/rss_source_pipeline/fetch_exit.txt
+
       - name: Publish live CSV outputs to repository
         env:
           COMMIT_OUTPUTS: ${{ github.event_name == 'schedule' && 'true' || github.event.inputs.commit_outputs || 'false' }}
+          EXPECTED_SHA: ${{ github.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if [ "${COMMIT_OUTPUTS}" != "true" ]; then
             echo "Live output commit disabled."
             exit 0
           fi
+          test "$(git rev-parse HEAD)" = "${EXPECTED_SHA}"
           mkdir -p data/live
           cp data/output/rss_source_pipeline/source_items.csv data/live/source_items.csv
           cp data/output/rss_source_pipeline/source_events.csv data/live/source_events.csv
@@ -105,11 +151,10 @@ jobs:
             echo "No live RSS output changes to commit."
           else
             git commit -m "Update live RSS source events [skip ci]"
-            git push
+            git config --local http.https://github.com/.extraheader "AUTHORIZATION: bearer ${GITHUB_TOKEN}"
+            cleanup_git_auth() { git config --local --unset-all http.https://github.com/.extraheader >/dev/null 2>&1 || true; }
+            trap cleanup_git_auth EXIT
+            git push origin HEAD:refs/heads/main
+            cleanup_git_auth
+            trap - EXIT
           fi
-      - name: Upload RSS source artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: rss-source-pipeline
-          path: data/output/rss_source_pipeline/
-          if-no-files-found: error

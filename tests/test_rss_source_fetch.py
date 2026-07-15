@@ -7,7 +7,13 @@ from unittest.mock import patch
 import pytest
 
 from political_event_tracking_research import rss_source_fetch
-from political_event_tracking_research.rss_source_fetch import FeedConfig, fetch_rss_sources, parse_feed_items
+from political_event_tracking_research.feed_status_canonical_h2c import read_status
+from political_event_tracking_research.rss_source_fetch import (
+    FeedConfig,
+    fetch_rss_sources,
+    parse_feed_items,
+    parse_feed_snapshot,
+)
 
 
 def test_parse_rss_feed_items_to_source_items() -> None:
@@ -68,6 +74,19 @@ def test_parse_atom_feed_items_to_source_items() -> None:
     assert rows[0]["published_at"] == "2026-05-02T10:00:00Z"
     assert rows[0]["source_url"] == "https://www.sec.gov/example/evt2"
     assert "EVT2" in rows[0]["text"]
+
+
+@pytest.mark.parametrize(
+    ("payload", "kind"),
+    [
+        (b"<rss version='2.0'><channel/></rss>", "rss2"),
+        (b"<feed xmlns='http://www.w3.org/2005/Atom'/>", "atom"),
+    ],
+)
+def test_empty_feed_keeps_parser_kind(payload: bytes, kind: str) -> None:
+    parsed_kind, rows = parse_feed_snapshot(payload, FeedConfig("x", "https://example.test", "official", ""))
+    assert parsed_kind == kind
+    assert rows == []
 
 
 @pytest.mark.parametrize(
@@ -159,20 +178,22 @@ def test_fetch_rss_sources_can_continue_and_write_status(tmp_path: Path) -> None
     output = tmp_path / "source_items.csv"
     status = tmp_path / "status.json"
 
-    rows = fetch_rss_sources(
-        feeds_path,
-        output,
-        continue_on_feed_error=True,
-        status_output=status,
-        fetcher=fake_fetch,
-    )
+    with pytest.raises(RuntimeError, match="feed_fetch_failed"):
+        fetch_rss_sources(
+            feeds_path,
+            output,
+            continue_on_feed_error=True,
+            status_output=status,
+            fetcher=fake_fetch,
+        )
 
-    assert len(rows) == 1
-    payload = json.loads(status.read_text(encoding="utf-8"))
+    assert output.exists()
+    payload = read_status(status.read_bytes())
     assert payload["successful_feed_count"] == 1
     assert payload["failed_feed_count"] == 1
-    assert payload["feeds"][1]["feed_id"] == "bad"
-    assert "RuntimeError" in payload["feeds"][1]["error"]
+    failed = next(item for item in payload["feeds"] if item["feed_id"] == "bad")
+    assert failed["state"] == "failed"
+    assert failed["error_code"] == "fetch_failed"
 
 
 def test_fetch_rss_sources_fails_when_all_feeds_fail(tmp_path: Path) -> None:
@@ -186,7 +207,7 @@ def test_fetch_rss_sources_fails_when_all_feeds_fail(tmp_path: Path) -> None:
     def fake_fetch(_url: str) -> bytes:
         raise RuntimeError("blocked")
 
-    with pytest.raises(RuntimeError, match="all configured"):
+    with pytest.raises(RuntimeError, match="feed_fetch_failed"):
         fetch_rss_sources(
             feeds_path,
             tmp_path / "source_items.csv",
@@ -194,3 +215,32 @@ def test_fetch_rss_sources_fails_when_all_feeds_fail(tmp_path: Path) -> None:
             status_output=tmp_path / "status.json",
             fetcher=fake_fetch,
         )
+    payload = read_status((tmp_path / "status.json").read_bytes())
+    assert payload["failed_feed_count"] == 1
+    assert payload["eligible_for_live_publication"] is False
+
+
+def test_zero_entry_quarantine_writes_canonical_noneligible_status(tmp_path: Path) -> None:
+    feeds_path = tmp_path / "feeds.csv"
+    feeds_path.write_text(
+        "feed_id,feed_url,source_type,author\nempty,https://example.invalid/empty,official,\n",
+        encoding="utf-8",
+    )
+    output = tmp_path / "source_items.csv"
+    status = tmp_path / "status.json"
+
+    rows = fetch_rss_sources(
+        feeds_path,
+        output,
+        continue_on_feed_error=True,
+        status_output=status,
+        fetcher=lambda _url: b"<rss version='2.0'><channel/></rss>",
+    )
+
+    assert rows == []
+    payload = read_status(status.read_bytes())
+    assert payload["quarantined_feed_count"] == 1
+    assert payload["eligible_for_live_publication"] is False
+    assert status.read_bytes() == json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode()

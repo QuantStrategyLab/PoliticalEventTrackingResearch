@@ -16,6 +16,7 @@ import defusedxml.ElementTree as ET
 from defusedxml.common import DefusedXmlException
 
 from .csv_utils import read_csv_rows, write_csv_rows
+from .feed_status_canonical_h2c import DecisionContractError, DecisionKind, build_decision, read_status
 
 
 USER_AGENT = (
@@ -37,22 +38,43 @@ class FeedConfig:
 class FeedFetchStatus:
     feed_id: str
     feed_url: str
-    ok: bool
-    item_count: int
-    error: str = ""
+    kind: str
+    state: str
+    rows: tuple[dict[str, str], ...] = ()
+    error_code: str | None = None
 
-    def to_json(self) -> dict[str, object]:
+    def to_outcome(self) -> dict[str, object]:
         return {
             "feed_id": self.feed_id,
             "feed_url": self.feed_url,
-            "ok": self.ok,
-            "item_count": self.item_count,
-            "error": self.error,
+            "kind": self.kind,
+            "state": self.state,
+            "rows": list(self.rows),
+            "error_code": self.error_code,
         }
 
 
 class FeedXmlError(ValueError):
     """Sanitized producer-boundary XML failure."""
+
+
+class FetchStatusError(ValueError):
+    def __init__(self, code: str):
+        super().__init__(code)
+        self.code = code
+
+
+def validate_fetch_status(payload: object, *, fetch_exit: int = 0) -> bool:
+    if type(fetch_exit) is not int or fetch_exit < 0:
+        raise FetchStatusError("fetch_exit_invalid")
+    if fetch_exit != 0:
+        raise FetchStatusError("fetch_failed")
+    try:
+        status_bytes = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        parsed = read_status(status_bytes)
+    except (DecisionContractError, TypeError, UnicodeError, ValueError):
+        raise FetchStatusError("fetch_status_invalid") from None
+    return parsed["eligible_for_live_publication"] is True
 
 
 def load_feed_config(path: str | Path) -> list[FeedConfig]:
@@ -131,7 +153,9 @@ def stable_item_id(feed_id: str, link: str, title: str) -> str:
     return f"{feed_id}-{digest}"
 
 
-def parse_feed_items(feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25) -> list[dict[str, str]]:
+def parse_feed_snapshot(
+    feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25
+) -> tuple[str, list[dict[str, str]]]:
     if type(feed_bytes) is not bytes:
         raise FeedXmlError("feed_xml_invalid")
     if len(feed_bytes) > MAX_XML_BYTES:
@@ -142,8 +166,11 @@ def parse_feed_items(feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25
         raise FeedXmlError("feed_xml_invalid") from None
     rows: list[dict[str, str]] = []
 
-    rss_items = root.findall("./channel/item")
-    if rss_items:
+    if root.tag == "rss":
+        channel = root.find("./channel")
+        if channel is None:
+            raise FeedXmlError("feed_xml_invalid")
+        rss_items = channel.findall("./item")
         for item in rss_items[:max_items]:
             title = child_text(item, ("title",))
             link = rss_item_link(item)
@@ -160,8 +187,10 @@ def parse_feed_items(feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25
                     "text": text,
                 }
             )
-        return rows
+        return "rss2", rows
 
+    if root.tag != "{http://www.w3.org/2005/Atom}feed":
+        raise FeedXmlError("feed_xml_invalid")
     atom_entries = root.findall("{http://www.w3.org/2005/Atom}entry")
     for entry in atom_entries[:max_items]:
         title = child_text(entry, ("{http://www.w3.org/2005/Atom}title", "title"))
@@ -182,25 +211,29 @@ def parse_feed_items(feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25
                 "text": text,
             }
         )
-    return rows
+    return "atom", rows
+
+
+def parse_feed_items(feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25) -> list[dict[str, str]]:
+    return parse_feed_snapshot(feed_bytes, feed, max_items=max_items)[1]
 
 
 def utc_now_iso() -> str:
     return dt.datetime.now(dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def write_fetch_status(path: str | Path, statuses: list[FeedFetchStatus], *, item_count: int) -> None:
-    payload = {
-        "generated_at": utc_now_iso(),
-        "feed_count": len(statuses),
-        "successful_feed_count": sum(1 for item in statuses if item.ok),
-        "failed_feed_count": sum(1 for item in statuses if not item.ok),
-        "item_count": item_count,
-        "feeds": [item.to_json() for item in statuses],
-    }
+def write_fetch_status(path: str | Path, statuses: list[FeedFetchStatus]) -> DecisionKind:
+    if not statuses:
+        raise FetchStatusError("feed_config_empty")
+    try:
+        decision = build_decision(item.to_outcome() for item in statuses)
+        read_status(decision.status_bytes)
+    except DecisionContractError as exc:
+        raise FetchStatusError(exc.code) from None
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    output_path.write_bytes(decision.status_bytes)
+    return decision.decision.kind
 
 
 def fetch_rss_sources(
@@ -214,20 +247,24 @@ def fetch_rss_sources(
 ) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     statuses: list[FeedFetchStatus] = []
-    for feed in load_feed_config(feeds_path):
+    feeds = load_feed_config(feeds_path)
+    if not feeds:
+        raise FetchStatusError("feed_config_empty")
+    for feed in feeds:
         try:
-            feed_rows = parse_feed_items(fetcher(feed.feed_url), feed, max_items=max_items_per_feed)
+            kind, feed_rows = parse_feed_snapshot(fetcher(feed.feed_url), feed, max_items=max_items_per_feed)
         except Exception as exc:
             statuses.append(
                 FeedFetchStatus(
                     feed_id=feed.feed_id,
                     feed_url=feed.feed_url,
-                    ok=False,
-                    item_count=0,
-                    error=f"{type(exc).__name__}: {exc}",
+                    kind="unknown",
+                    state="failed",
+                    error_code="fetch_failed",
                 )
             )
             if not continue_on_feed_error:
+                write_fetch_status(status_output, statuses) if status_output else None
                 raise
             continue
         rows.extend(feed_rows)
@@ -235,18 +272,19 @@ def fetch_rss_sources(
             FeedFetchStatus(
                 feed_id=feed.feed_id,
                 feed_url=feed.feed_url,
-                ok=True,
-                item_count=len(feed_rows),
+                kind=kind,
+                state="accepted" if feed_rows else "quarantined",
+                rows=tuple(feed_rows),
+                error_code=None if feed_rows else "zero_entries",
             )
         )
-    if statuses and not any(item.ok for item in statuses):
-        if status_output:
-            write_fetch_status(status_output, statuses, item_count=0)
-        raise RuntimeError("all configured RSS/Atom feeds failed")
     rows.sort(key=lambda row: (row["published_at"], row["item_id"]))
     write_csv_rows(output_path, ["item_id", "published_at", "source_type", "source_url", "author", "text"], rows)
+    decision_kind = None
     if status_output:
-        write_fetch_status(status_output, statuses, item_count=len(rows))
+        decision_kind = write_fetch_status(status_output, statuses)
+    if decision_kind is DecisionKind.HARD_FAIL:
+        raise RuntimeError("feed_fetch_failed")
     return rows
 
 
