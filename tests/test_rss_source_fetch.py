@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from political_event_tracking_research import rss_source_fetch
+from political_event_tracking_research.feed_primitives import parse_status_bytes
 from political_event_tracking_research.rss_source_fetch import FeedConfig, fetch_rss_sources, parse_feed_items
 
 
@@ -169,10 +170,11 @@ def test_fetch_rss_sources_can_continue_and_write_status(tmp_path: Path) -> None
 
     assert len(rows) == 1
     payload = json.loads(status.read_text(encoding="utf-8"))
+    parse_status_bytes(status.read_bytes())
     assert payload["successful_feed_count"] == 1
     assert payload["failed_feed_count"] == 1
-    assert payload["feeds"][1]["feed_id"] == "bad"
-    assert "RuntimeError" in payload["feeds"][1]["error"]
+    failed = next(item for item in payload["feeds"] if item["feed_id"] == "bad")
+    assert failed["error_code"] == "fetch_failed"
 
 
 def test_fetch_rss_sources_fails_when_all_feeds_fail(tmp_path: Path) -> None:
@@ -194,3 +196,47 @@ def test_fetch_rss_sources_fails_when_all_feeds_fail(tmp_path: Path) -> None:
             status_output=tmp_path / "status.json",
             fetcher=fake_fetch,
         )
+
+
+def test_all_zero_entry_feeds_write_quarantine_status_without_hard_failure(tmp_path: Path) -> None:
+    feeds_path = tmp_path / "feeds.csv"
+    feeds_path.write_text(
+        "feed_id,feed_url,source_type,author\n"
+        "empty,https://example.invalid/empty.xml,official_remarks,Example\n",
+        encoding="utf-8",
+    )
+    feed_xml = b"<rss version='2.0'><channel/></rss>"
+
+    output = tmp_path / "source_items.csv"
+    status = tmp_path / "status.json"
+    rows = fetch_rss_sources(feeds_path, output, status_output=status, fetcher=lambda _url: feed_xml)
+
+    assert rows == []
+    assert output.read_text(encoding="utf-8") == "item_id,published_at,source_type,source_url,author,text\n"
+    payload = json.loads(status.read_text(encoding="utf-8"))
+    assert payload["quarantined_feed_count"] == 1
+    assert payload["accepted_row_count"] == 0
+    assert payload["publication_complete"] is False
+    assert payload["eligible_for_live_publication"] is False
+
+
+def test_all_zero_entry_feeds_write_quarantine_status_without_hard_failure(tmp_path: Path) -> None:
+    feeds_path = tmp_path / "feeds.csv"
+    feeds_path.write_text(
+        "feed_id,feed_url,source_type,author\n"
+        "empty,https://example.invalid/empty.xml,official_remarks,Example\n",
+        encoding="utf-8",
+    )
+    feed_xml = b"<rss version='2.0'><channel/></rss>"
+
+    output = tmp_path / "source_items.csv"
+    status = tmp_path / "status.json"
+    rows = fetch_rss_sources(feeds_path, output, status_output=status, fetcher=lambda _url: feed_xml)
+
+    assert rows == []
+    assert output.read_text(encoding="utf-8") == "item_id,published_at,source_type,source_url,author,text\n"
+    payload = json.loads(status.read_text(encoding="utf-8"))
+    assert payload["quarantined_feed_count"] == 1
+    assert payload["accepted_row_count"] == 0
+    assert payload["publication_complete"] is False
+    assert payload["eligible_for_live_publication"] is False
