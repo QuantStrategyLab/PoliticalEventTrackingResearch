@@ -171,8 +171,8 @@ def test_fetch_rss_sources_can_continue_and_write_status(tmp_path: Path) -> None
     payload = json.loads(status.read_text(encoding="utf-8"))
     assert payload["successful_feed_count"] == 1
     assert payload["failed_feed_count"] == 1
-    assert payload["feeds"][1]["feed_id"] == "bad"
-    assert "RuntimeError" in payload["feeds"][1]["error"]
+    failed = next(item for item in payload["feeds"] if item["feed_id"] == "bad")
+    assert failed["error_code"] == "fetch_failed"
 
 
 def test_fetch_rss_sources_fails_when_all_feeds_fail(tmp_path: Path) -> None:
