@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
+from political_event_tracking_research import rss_source_fetch
 from political_event_tracking_research.rss_source_fetch import FeedConfig, fetch_rss_sources, parse_feed_items
 
 
@@ -66,6 +68,70 @@ def test_parse_atom_feed_items_to_source_items() -> None:
     assert rows[0]["published_at"] == "2026-05-02T10:00:00Z"
     assert rows[0]["source_url"] == "https://www.sec.gov/example/evt2"
     assert "EVT2" in rows[0]["text"]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        b"<!DOCTYPE rss [<!ENTITY x SYSTEM 'file:///etc/passwd'>]><rss version='2.0'><channel/></rss>",
+        b"<?xml version='1.0'?><!DOCTYPE rss [<!ENTITY laugh 'x'>]><rss version='2.0'><channel/></rss>",
+        b"<?xml version='1.0' encoding='UTF-16'?><!DOCTYPE rss><rss version='2.0'><channel/></rss>",
+        b"<?xml version='1.0' encoding='x-unknown'?><rss version='2.0'><channel/></rss>",
+    ],
+)
+def test_defused_parser_rejects_entities_and_dtd(payload: bytes) -> None:
+    with pytest.raises(ValueError, match="feed_xml_"):
+        parse_feed_items(payload, FeedConfig("x", "https://example.test", "official", ""))
+
+
+def test_utf16_entity_is_rejected_before_row_conversion() -> None:
+    payload = """<?xml version='1.0' encoding='UTF-16'?>
+    <!DOCTYPE rss [<!ENTITY x SYSTEM 'file:///etc/passwd'>]>
+    <rss version='2.0'><channel><item><title>&x;</title></item></channel></rss>""".encode("utf-16")
+    with pytest.raises(ValueError, match="feed_xml_"):
+        parse_feed_items(payload, FeedConfig("x", "https://example.test", "official", ""))
+
+
+def test_utf16_valid_feed_is_supported_without_fallback() -> None:
+    payload = """<?xml version='1.0' encoding='UTF-16'?>
+    <rss version='2.0'><channel><item><title>UTF16</title>
+    <link>https://example.test/utf16</link><pubDate>Fri, 01 May 2026 12:30:00 GMT</pubDate>
+    </item></channel></rss>""".encode("utf-16")
+    rows = parse_feed_items(payload, FeedConfig("x", "https://example.test", "official", ""))
+    assert rows[0]["source_url"] == "https://example.test/utf16"
+
+
+def test_xml_payload_size_is_bounded_before_parse() -> None:
+    feed = FeedConfig("x", "https://example.test", "official", "")
+    with pytest.raises(ValueError, match="feed_xml_oversize"):
+        parse_feed_items(b"x" * (rss_source_fetch.MAX_XML_BYTES + 1), feed)
+
+
+def test_network_read_is_bounded_and_oversize_is_sanitized() -> None:
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, size: int) -> bytes:
+            assert size == rss_source_fetch.MAX_XML_BYTES + 1
+            return b"x" * size
+
+    with patch.object(rss_source_fetch.urllib.request, "urlopen", return_value=Response()):
+        with pytest.raises(ValueError, match="feed_xml_oversize"):
+            rss_source_fetch.fetch_url("https://example.test/feed")
+
+
+def test_network_timeout_is_not_retried_or_parsed() -> None:
+    with patch.object(rss_source_fetch.urllib.request, "urlopen", side_effect=TimeoutError("timeout")):
+        with pytest.raises(TimeoutError, match="timeout"):
+            rss_source_fetch.fetch_url("https://example.test/feed")
+
+
+def test_parser_has_no_stdlib_xml_fallback() -> None:
+    assert rss_source_fetch.ET.__name__ == "defusedxml.ElementTree"
 
 
 

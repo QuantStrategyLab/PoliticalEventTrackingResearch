@@ -8,7 +8,9 @@ version = "0.1.0"
 description = "Research-only political event and public disclosure tracking for US equities."
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "defusedxml==0.7.1",
+]
 license = { text = "MIT" }
 
 [project.optional-dependencies]

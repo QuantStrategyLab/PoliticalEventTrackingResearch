@@ -8,10 +8,12 @@ import html
 import json
 import re
 import urllib.request
-import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+
+import defusedxml.ElementTree as ET
+from defusedxml.common import DefusedXmlException
 
 from .csv_utils import read_csv_rows, write_csv_rows
 
@@ -20,6 +22,7 @@ USER_AGENT = (
     "Mozilla/5.0 (compatible; QuantStrategyLabSourceIngest/0.1; "
     "+https://github.com/QuantStrategyLab/PoliticalEventTrackingResearch)"
 )
+MAX_XML_BYTES = 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -48,6 +51,10 @@ class FeedFetchStatus:
         }
 
 
+class FeedXmlError(ValueError):
+    """Sanitized producer-boundary XML failure."""
+
+
 def load_feed_config(path: str | Path) -> list[FeedConfig]:
     feeds: list[FeedConfig] = []
     for row in read_csv_rows(path):
@@ -71,7 +78,10 @@ def fetch_url(url: str) -> bytes:
         },
     )
     with urllib.request.urlopen(request, timeout=20) as response:
-        return response.read()
+        payload = response.read(MAX_XML_BYTES + 1)
+    if len(payload) > MAX_XML_BYTES:
+        raise FeedXmlError("feed_xml_oversize")
+    return payload
 
 
 def strip_html(value: str) -> str:
@@ -122,7 +132,14 @@ def stable_item_id(feed_id: str, link: str, title: str) -> str:
 
 
 def parse_feed_items(feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25) -> list[dict[str, str]]:
-    root = ET.fromstring(feed_bytes)
+    if type(feed_bytes) is not bytes:
+        raise FeedXmlError("feed_xml_invalid")
+    if len(feed_bytes) > MAX_XML_BYTES:
+        raise FeedXmlError("feed_xml_oversize")
+    try:
+        root = ET.fromstring(feed_bytes, forbid_dtd=True, forbid_entities=True, forbid_external=True)
+    except (DefusedXmlException, ET.ParseError, LookupError, UnicodeError, ValueError, RecursionError):
+        raise FeedXmlError("feed_xml_invalid") from None
     rows: list[dict[str, str]] = []
 
     rss_items = root.findall("./channel/item")
