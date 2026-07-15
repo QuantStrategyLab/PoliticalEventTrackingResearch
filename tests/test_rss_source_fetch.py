@@ -13,6 +13,8 @@ from political_event_tracking_research.rss_source_fetch import (
     fetch_rss_sources,
     parse_feed_items,
     parse_feed_snapshot,
+    readback_source_items,
+    serialize_source_items,
 )
 
 
@@ -244,3 +246,58 @@ def test_zero_entry_quarantine_writes_canonical_noneligible_status(tmp_path: Pat
     assert status.read_bytes() == json.dumps(
         payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     ).encode()
+
+
+def test_source_item_readback_rejects_tamper_and_stale_bytes(tmp_path: Path) -> None:
+    rows = [
+        {
+            "item_id": "a-1",
+            "published_at": "2026-05-01T00:00:00Z",
+            "source_type": "official",
+            "source_url": "https://example.test/a/1",
+            "author": "",
+            "text": "event",
+        }
+    ]
+    path = tmp_path / "source_items.csv"
+    expected = serialize_source_items(rows)
+    path.write_bytes(expected)
+    assert readback_source_items(path, expected, rows) == rows
+    path.write_bytes(expected.replace(b"event", b"tampered"))
+    with pytest.raises(ValueError, match="source_items_bytes_mismatch"):
+        readback_source_items(path, expected, rows)
+
+
+def test_hard_fail_is_raised_without_status_output(tmp_path: Path) -> None:
+    feeds = tmp_path / "feeds.csv"
+    feeds.write_text(
+        "feed_id,feed_url,source_type,author\nbad,https://example.invalid/bad,official,\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="feed_fetch_failed"):
+        fetch_rss_sources(
+            feeds,
+            tmp_path / "items.csv",
+            fetcher=lambda _url: (_ for _ in ()).throw(RuntimeError("blocked")),
+        )
+
+
+def test_early_abort_status_covers_all_configured_feeds(tmp_path: Path) -> None:
+    feeds = tmp_path / "feeds.csv"
+    feeds.write_text(
+        "feed_id,feed_url,source_type,author\n"
+        "first,https://example.invalid/first,official,\n"
+        "second,https://example.invalid/second,official,\n",
+        encoding="utf-8",
+    )
+    status = tmp_path / "status.json"
+    with pytest.raises(RuntimeError, match="feed_fetch_failed"):
+        fetch_rss_sources(
+            feeds,
+            tmp_path / "items.csv",
+            status_output=status,
+            fetcher=lambda _url: (_ for _ in ()).throw(RuntimeError("blocked")),
+        )
+    payload = read_status(status.read_bytes())
+    assert payload["feed_count"] == 2
+    assert {item["error_code"] for item in payload["feeds"]} == {"fetch_failed", "not_attempted"}
