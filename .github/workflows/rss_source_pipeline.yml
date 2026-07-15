@@ -23,6 +23,16 @@ on:
         required: false
         default: "50"
         type: string
+      period_start:
+        description: "Manual completed ISO-week Monday date."
+        required: false
+        default: ""
+        type: string
+      as_of:
+        description: "Manual completed ISO-week Sunday date."
+        required: false
+        default: ""
+        type: string
       commit_outputs:
         description: "Commit generated live CSV outputs back to data/live."
         required: false
@@ -32,9 +42,10 @@ on:
           - "false"
           - "true"
   schedule:
-    - cron: "15 12 * * 6"
+    - cron: "15 12 * * 1"
 
 permissions:
+  actions: read
   contents: write
 
 concurrency:
@@ -52,6 +63,43 @@ jobs:
           python-version: "3.11"
       - name: Install package
         run: python -m pip install -e .
+      - name: Validate workflow dispatch before side effects
+        env:
+          PERIOD_START: ${{ github.event.inputs.period_start || '' }}
+          AS_OF: ${{ github.event.inputs.as_of || '' }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RUN_PAYLOAD="${RUNNER_TEMP}/pert-workflow-run.json"
+          if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
+            curl --fail --silent --show-error \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" > "${RUN_PAYLOAD}"
+          else
+            rm -f "${RUN_PAYLOAD}"
+          fi
+          if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
+            PAYLOAD_ARGS=(--run-payload "${RUN_PAYLOAD}")
+          else
+            PAYLOAD_ARGS=()
+          fi
+          python scripts/validate_weekly_workflow.py \
+            --event "${GITHUB_EVENT_NAME}" \
+            --run-id "${GITHUB_RUN_ID}" \
+            --run-attempt "${GITHUB_RUN_ATTEMPT}" \
+            --workflow-ref "${GITHUB_WORKFLOW_REF}" \
+            --producer-ref "${GITHUB_SHA}" \
+            --period-start "${PERIOD_START}" \
+            --as-of "${AS_OF}" \
+            "${PAYLOAD_ARGS[@]}" \
+            --output "${RUNNER_TEMP}/pert-period-context.json"
+          python - <<'PY' "${RUNNER_TEMP}/pert-period-context.json" >> "${GITHUB_ENV}"
+          import json, sys
+          value = json.load(open(sys.argv[1], encoding="utf-8"))
+          for key in ("period_start", "period_end_exclusive", "as_of", "producer_ref"):
+              print(f"PERT_{key.upper()}={value[key]}")
+          PY
       - name: Fetch RSS sources and extract mentions
         env:
           FEEDS_PATH: ${{ github.event.inputs.feeds_path || 'config/free_rss_feeds.csv' }}
@@ -113,3 +161,33 @@ jobs:
           name: rss-source-pipeline
           path: data/output/rss_source_pipeline/
           if-no-files-found: error
+      - name: Build completed weekly producer artifact
+        env:
+          WATCHLIST_PATH: ${{ github.event.inputs.watchlist_path || 'data/live/political_watchlist.csv' }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/output/political-event-weekly-v1
+          if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
+            RUN_MODE=scheduled
+          else
+            RUN_MODE=manual
+          fi
+          python scripts/build_weekly_artifact.py \
+            --period-start "${PERT_PERIOD_START}" \
+            --as-of "${PERT_AS_OF}" \
+            --generated-at "$(date -u +%Y-%m-%dT%H:%M:%S.000000Z)" \
+            --workflow-ref "${GITHUB_WORKFLOW_REF}" \
+            --source-run-id "${GITHUB_RUN_ID}" \
+            --producer-ref "${PERT_PRODUCER_REF}" \
+            --source-events data/output/rss_source_pipeline/source_events.csv \
+            --watchlist "${WATCHLIST_PATH}" \
+            --feed-status data/output/rss_source_pipeline/source_fetch_status.json \
+            --output-dir data/output/political-event-weekly-v1 \
+            --run-mode "${RUN_MODE}"
+      - name: Upload political weekly artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: political-event-weekly-v1
+          path: data/output/political-event-weekly-v1/
+          if-no-files-found: error
+          retention-days: 30
