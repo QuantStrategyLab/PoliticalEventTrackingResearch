@@ -23,18 +23,25 @@ on:
         required: false
         default: "50"
         type: string
+      period_start:
+        description: "Must equal the immediately prior complete ISO-week Monday derived from this run."
+        required: true
+        type: string
+      as_of:
+        description: "Must equal the immediately prior complete ISO-week Sunday derived from this run."
+        required: true
+        type: string
       commit_outputs:
         description: "Commit generated live CSV outputs back to data/live."
         required: false
         default: "false"
         type: choice
-        options:
-          - "false"
-          - "true"
+        options: ["false", "true"]
   schedule:
-    - cron: "15 12 * * 6"
+    - cron: "15 12 * * 1"
 
 permissions:
+  actions: read
   contents: write
 
 concurrency:
@@ -42,11 +49,82 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate-run-boundary:
+    if: >-
+      github.repository == 'QuantStrategyLab/PoliticalEventTrackingResearch' &&
+      github.ref == 'refs/heads/main' &&
+      github.workflow_ref == 'QuantStrategyLab/PoliticalEventTrackingResearch/.github/workflows/rss_source_pipeline.yml@refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      period_start: ${{ steps.guard.outputs.period_start }}
+      period_end_exclusive: ${{ steps.guard.outputs.period_end_exclusive }}
+      as_of: ${{ steps.guard.outputs.as_of }}
+      producer_ref: ${{ steps.guard.outputs.producer_ref }}
+    steps:
+      - name: Validate run identity and period before checkout
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          PERIOD_START: ${{ github.event.inputs.period_start || '' }}
+          AS_OF: ${{ github.event.inputs.as_of || '' }}
+          API_URL: ${{ github.api_url }}
+        run: |
+          set -euo pipefail
+          payload="${RUNNER_TEMP}/pert-workflow-run.json"
+          curl --fail --silent --show-error \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            "${API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" > "${payload}"
+          python3 - "${payload}" <<'PY'
+          import json
+          import os
+          import sys
+          from datetime import datetime, timedelta, timezone
+
+          expected_repo = "QuantStrategyLab/PoliticalEventTrackingResearch"
+          expected_path = ".github/workflows/rss_source_pipeline.yml"
+          expected_ref = f"{expected_repo}/{expected_path}@refs/heads/main"
+          payload = json.load(open(sys.argv[1], encoding="utf-8"))
+          if os.environ["WORKFLOW_REF"] != expected_ref or os.environ["GITHUB_REF"] != "refs/heads/main":
+              raise SystemExit("workflow_identity_invalid")
+          if payload.get("id") != int(os.environ["RUN_ID"]) or type(payload.get("run_attempt")) is not int or payload["run_attempt"] != 1:
+              raise SystemExit("workflow_identity_invalid")
+          if payload.get("event") != os.environ["EVENT_NAME"] or payload.get("path") != expected_path or payload.get("head_branch") != "main":
+              raise SystemExit("workflow_identity_invalid")
+          if payload.get("head_repository", {}).get("full_name") != expected_repo:
+              raise SystemExit("workflow_identity_invalid")
+          producer_ref = payload.get("head_sha")
+          if type(producer_ref) is not str or producer_ref != os.environ["GITHUB_SHA"] or len(producer_ref) != 40 or any(char not in "0123456789abcdef" for char in producer_ref):
+              raise SystemExit("workflow_identity_invalid")
+          created = datetime.fromisoformat(payload["created_at"].replace("Z", "+00:00"))
+          if created.tzinfo != timezone.utc:
+              raise SystemExit("workflow_created_at_invalid")
+          current_monday = created.date() - timedelta(days=created.date().weekday())
+          start = current_monday - timedelta(days=7)
+          end = current_monday
+          as_of = end - timedelta(days=1)
+          if os.environ["EVENT_NAME"] == "workflow_dispatch" and (os.environ["PERIOD_START"], os.environ["AS_OF"]) != (start.isoformat(), as_of.isoformat()):
+              raise SystemExit("manual_period_not_immediate_prior")
+          for key, value in (("period_start", start.isoformat()), ("period_end_exclusive", end.isoformat()), ("as_of", as_of.isoformat()), ("producer_ref", producer_ref)):
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+                  output.write(f"{key}={value}\n")
+          PY
+
   build-rss-source-events:
+    needs: validate-run-boundary
+    if: needs.validate-run-boundary.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
+        with:
+          repository: QuantStrategyLab/PoliticalEventTrackingResearch
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
@@ -61,55 +139,44 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p data/output/rss_source_pipeline
-          python scripts/fetch_rss_sources.py \
-            --feeds "${FEEDS_PATH}" \
-            --output data/output/rss_source_pipeline/source_items.csv \
-            --max-items-per-feed "${MAX_ITEMS_PER_FEED}" \
-            --continue-on-feed-error \
-            --status-output data/output/rss_source_pipeline/source_fetch_status.json
-          python scripts/extract_source_mentions.py \
-            --raw-items data/output/rss_source_pipeline/source_items.csv \
-            --aliases "${ALIASES_PATH}" \
-            --output data/output/rss_source_pipeline/source_events.csv
-          python scripts/build_tracker.py \
-            --watchlist "${WATCHLIST_PATH}" \
-            --events data/output/rss_source_pipeline/source_events.csv \
-            --output data/output/rss_source_pipeline/source_tracker.csv
+          python scripts/fetch_rss_sources.py --feeds "${FEEDS_PATH}" --output data/output/rss_source_pipeline/source_items.csv --max-items-per-feed "${MAX_ITEMS_PER_FEED}" --continue-on-feed-error --status-output data/output/rss_source_pipeline/source_fetch_status.json
+          python scripts/extract_source_mentions.py --raw-items data/output/rss_source_pipeline/source_items.csv --aliases "${ALIASES_PATH}" --output data/output/rss_source_pipeline/source_events.csv
+          python scripts/build_tracker.py --watchlist "${WATCHLIST_PATH}" --events data/output/rss_source_pipeline/source_events.csv --output data/output/rss_source_pipeline/source_tracker.csv
       - name: Publish live CSV outputs to repository
         env:
           COMMIT_OUTPUTS: ${{ github.event_name == 'schedule' && 'true' || github.event.inputs.commit_outputs || 'false' }}
         run: |
           set -euo pipefail
-          if [ "${COMMIT_OUTPUTS}" != "true" ]; then
-            echo "Live output commit disabled."
-            exit 0
-          fi
+          if [ "${COMMIT_OUTPUTS}" != "true" ]; then echo "Live output commit disabled."; exit 0; fi
           mkdir -p data/live
           cp data/output/rss_source_pipeline/source_items.csv data/live/source_items.csv
           cp data/output/rss_source_pipeline/source_events.csv data/live/source_events.csv
           cp data/output/rss_source_pipeline/source_events.csv data/live/political_events.csv
           cp data/output/rss_source_pipeline/source_tracker.csv data/live/source_tracker.csv
           cp data/output/rss_source_pipeline/source_fetch_status.json data/live/source_fetch_status.json
-          python scripts/write_live_manifest.py \
-            --base-dir . \
-            --output data/live/source_manifest.json \
-            data/live/source_fetch_status.json \
-            data/live/source_items.csv \
-            data/live/source_events.csv \
-            data/live/political_events.csv \
-            data/live/source_tracker.csv
+          python scripts/write_live_manifest.py --base-dir . --output data/live/source_manifest.json data/live/source_fetch_status.json data/live/source_items.csv data/live/source_events.csv data/live/political_events.csv data/live/source_tracker.csv
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/live/source_items.csv data/live/source_events.csv data/live/political_events.csv data/live/source_tracker.csv data/live/source_fetch_status.json data/live/source_manifest.json
-          if git diff --cached --quiet; then
-            echo "No live RSS output changes to commit."
-          else
-            git commit -m "Update live RSS source events [skip ci]"
-            git push
-          fi
+          git add data/live
+          if git diff --cached --quiet; then echo "No live RSS output changes to commit."; else git commit -m "Update live RSS source events [skip ci]"; git push; fi
       - name: Upload RSS source artifact
         uses: actions/upload-artifact@v7
         with:
           name: rss-source-pipeline
           path: data/output/rss_source_pipeline/
           if-no-files-found: error
+      - name: Build completed weekly producer artifact
+        env:
+          WATCHLIST_PATH: ${{ github.event.inputs.watchlist_path || 'data/live/political_watchlist.csv' }}
+          RUN_MODE: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/output/political-event-weekly-v1
+          python scripts/build_weekly_artifact.py --period-start "${{ needs.validate-run-boundary.outputs.period_start }}" --as-of "${{ needs.validate-run-boundary.outputs.as_of }}" --generated-at "$(date -u +%Y-%m-%dT%H:%M:%S.000000Z)" --workflow-ref "${GITHUB_WORKFLOW_REF}" --source-run-id "${GITHUB_RUN_ID}" --producer-ref "${{ needs.validate-run-boundary.outputs.producer_ref }}" --source-events data/output/rss_source_pipeline/source_events.csv --watchlist "${WATCHLIST_PATH}" --feed-status data/output/rss_source_pipeline/source_fetch_status.json --output-dir data/output/political-event-weekly-v1 --run-mode "${RUN_MODE}"
+      - name: Upload political weekly artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: political-event-weekly-v1
+          path: data/output/political-event-weekly-v1/
+          if-no-files-found: error
+          retention-days: 30
