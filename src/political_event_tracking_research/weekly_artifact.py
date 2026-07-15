@@ -93,7 +93,7 @@ def _parse_canonical_json(wire: bytes, code: str) -> object:
     return value
 
 
-def _csv_snapshot(value: object, expected_header: tuple[str, ...], code: str) -> tuple[int, tuple[str, ...]]:
+def _csv_snapshot(value: object, expected_header: tuple[str, ...], code: str, *, allow_empty: bool = False) -> tuple[int, tuple[str, ...]]:
     if type(value) is not bytes:
         raise _invalid(code)
     try:
@@ -103,15 +103,44 @@ def _csv_snapshot(value: object, expected_header: tuple[str, ...], code: str) ->
         raise _invalid(code) from None
     if not rows or tuple(rows[0]) != expected_header:
         raise _invalid(f"{code}_header")
-    if len(rows) < 2 or any(len(row) != len(expected_header) for row in rows[1:]):
+    if (not allow_empty and len(rows) < 2) or any(len(row) != len(expected_header) for row in rows[1:]):
         raise _invalid(f"{code}_rows")
     return len(rows) - 1, expected_header
+
+
+def _filter_events(value: object, period_start: date, as_of: date) -> bytes:
+    if type(value) is not bytes:
+        raise _invalid("events_csv_invalid")
+    try:
+        rows = list(csv.reader(io.StringIO(value.decode("utf-8"), newline="")))
+    except (UnicodeError, csv.Error, ValueError, RecursionError):
+        raise _invalid("events_csv_invalid") from None
+    if not rows or tuple(rows[0]) != EVENT_HEADER:
+        raise _invalid("events_csv_header")
+    selected: list[list[str]] = []
+    for row in rows[1:]:
+        if len(row) != len(EVENT_HEADER):
+            raise _invalid("events_csv_rows")
+        event_date = row[1]
+        if type(event_date) is not str or len(event_date) != 10:
+            raise _invalid("events_date_invalid")
+        try:
+            parsed_date = date.fromisoformat(event_date)
+        except ValueError:
+            raise _invalid("events_date_invalid") from None
+        if period_start <= parsed_date <= as_of:
+            selected.append(row)
+    output = io.StringIO(newline="")
+    writer = csv.writer(output, lineterminator="\n")
+    writer.writerow(EVENT_HEADER)
+    writer.writerows(selected)
+    return output.getvalue().encode("utf-8")
 
 
 def _feed_status(value: object) -> WeeklyFeedStatus:
     if not isinstance(value, Mapping):
         raise _invalid("feed_status_invalid")
-    required = ("feed_count", "successful_feed_count", "failed_feed_count")
+    required = ("feed_count", "successful_feed_count", "failed_feed_count", "complete")
     if any(key not in value for key in required):
         raise _invalid("feed_status_invalid")
     try:
@@ -121,7 +150,7 @@ def _feed_status(value: object) -> WeeklyFeedStatus:
             value["failed_feed_count"],
             value.get("stale_feed_count", 0),
             value.get("missing_feed_count", 0),
-            True,
+            value["complete"],
         )
     except (WeeklyContractError, TypeError, ValueError):
         raise _invalid("feed_status_incomplete") from None
@@ -173,7 +202,7 @@ def _file_metadata(name: str, value: bytes, *, role: str, row_count: int | None 
 
 
 def _manifest_payload(lock: PoliticalEventWeeklyPeriodLockV1, contract: WeeklySourceContract, files: Mapping[str, bytes]) -> dict[str, object]:
-    event_rows, event_header = _csv_snapshot(files[EVENTS_NAME], EVENT_HEADER, "events_csv_invalid")
+    event_rows, event_header = _csv_snapshot(files[EVENTS_NAME], EVENT_HEADER, "events_csv_invalid", allow_empty=True)
     watch_rows, watch_header = _csv_snapshot(files[WATCHLIST_NAME], WATCHLIST_HEADER, "watchlist_csv_invalid")
     return {
         "manifest_version": MANIFEST_VERSION,
@@ -221,14 +250,16 @@ def build_weekly_artifact(
     generated_at = _timestamp(generated_at)
     if generated_at < datetime.combine(period_end, datetime.min.time(), timezone.utc):
         raise _invalid("generated_at_invalid")
-    event_rows, _ = _csv_snapshot(source_events, EVENT_HEADER, "events_csv_invalid")
+    raw_snapshot_digest = _snapshot_digest(source_events, watchlist)
+    period_events = _filter_events(source_events, period_start, as_of)
+    event_rows, _ = _csv_snapshot(period_events, EVENT_HEADER, "events_csv_invalid", allow_empty=True)
     watch_rows, _ = _csv_snapshot(watchlist, WATCHLIST_HEADER, "watchlist_csv_invalid")
     status = _feed_status(feed_status)
     if type(source_provenance) is not str or source_provenance != "official_rss_source_pipeline_v1":
         raise _invalid("source_provenance_invalid")
     if type(run_mode) is not str or run_mode not in {"scheduled", "manual"}:
         raise _invalid("run_mode_invalid")
-    source_snapshot_digest = _snapshot_digest(source_events, watchlist)
+    source_snapshot_digest = raw_snapshot_digest
     source_snapshot_id = f"rss_source_snapshot_{as_of:%Y%m%d}_{source_run_id}"
     try:
         lock = PoliticalEventWeeklyPeriodLockV1(
@@ -243,7 +274,7 @@ def build_weekly_artifact(
             source_snapshot_digest,
             source_provenance,
             (
-                SourceSnapshotArtifact(EVENTS_NAME, _sha256(source_events), event_rows),
+                SourceSnapshotArtifact(EVENTS_NAME, _sha256(period_events), event_rows),
                 SourceSnapshotArtifact(WATCHLIST_NAME, _sha256(watchlist), watch_rows),
             ),
         )
@@ -256,7 +287,7 @@ def build_weekly_artifact(
             producer_ref,
             source_provenance,
             (
-                WeeklySourceArtifact(EVENTS_NAME, _sha256(source_events), event_rows),
+                WeeklySourceArtifact(EVENTS_NAME, _sha256(period_events), event_rows),
                 WeeklySourceArtifact(WATCHLIST_NAME, _sha256(watchlist), watch_rows),
             ),
             status,
@@ -267,7 +298,7 @@ def build_weekly_artifact(
         raise _invalid("weekly_artifact_invalid") from None
     files: dict[str, bytes] = {
         PERIOD_LOCK_NAME: period_lock,
-        EVENTS_NAME: source_events,
+        EVENTS_NAME: period_events,
         WATCHLIST_NAME: watchlist,
         WEEKLY_NAME: weekly,
     }
@@ -293,10 +324,11 @@ def parse_weekly_artifact(files: Mapping[str, bytes]) -> dict[str, bytes]:
         raise _invalid("weekly_contract_invalid") from None
     if serialize_weekly_contract(contract) != files[WEEKLY_NAME]:
         raise _invalid("weekly_noncanonical")
-    event_rows, _ = _csv_snapshot(files[EVENTS_NAME], EVENT_HEADER, "events_csv_invalid")
+    expected_events = _filter_events(files[EVENTS_NAME], contract.period_start, contract.as_of)
+    if expected_events != files[EVENTS_NAME]:
+        raise _invalid("events_period_mismatch")
+    event_rows, _ = _csv_snapshot(files[EVENTS_NAME], EVENT_HEADER, "events_csv_invalid", allow_empty=True)
     watch_rows, _ = _csv_snapshot(files[WATCHLIST_NAME], WATCHLIST_HEADER, "watchlist_csv_invalid")
-    if _snapshot_digest(files[EVENTS_NAME], files[WATCHLIST_NAME]) != lock.source_snapshot_digest:
-        raise _invalid("source_snapshot_digest_mismatch")
     expected_artifacts = (
         (EVENTS_NAME, _sha256(files[EVENTS_NAME]), event_rows),
         (WATCHLIST_NAME, _sha256(files[WATCHLIST_NAME]), watch_rows),
@@ -313,7 +345,6 @@ def parse_weekly_artifact(files: Mapping[str, bytes]) -> dict[str, bytes]:
         or lock.producer_ref != contract.producer_ref
         or lock.source_provenance != contract.source_provenance
         or lock.source_snapshot_id != expected_snapshot_id
-        or lock.source_snapshot_digest != _snapshot_digest(files[EVENTS_NAME], files[WATCHLIST_NAME])
         or lock.source_attempt != 1
     ):
         raise _invalid("period_contract_mismatch")

@@ -27,6 +27,7 @@ def feed_status(**overrides: object) -> dict[str, object]:
         "failed_feed_count": 0,
         "stale_feed_count": 0,
         "missing_feed_count": 0,
+        "complete": True,
     }
     value.update(overrides)
     return value
@@ -102,6 +103,44 @@ def test_incomplete_feed_status_does_not_build(status: dict[str, object]) -> Non
 def test_missing_or_malformed_csv_does_not_build(field: str) -> None:
     with pytest.raises(WeeklyArtifactError):
         build(**{field: b"not,the,approved,header\n"})
+
+
+def test_events_are_filtered_to_locked_period_deterministically() -> None:
+    source = EVENTS + b"old,2026-07-05,MSFT,public_mention,neutral,high,https://example.test/old,note\n"
+    files = build(source_events=source)
+    assert files["political_events.csv"] == EVENTS
+    base_lock = json.loads(build()["period_lock.json"])
+    filtered_lock = json.loads(files["period_lock.json"])
+    assert filtered_lock["source_snapshot_digest"] != base_lock["source_snapshot_digest"]
+    manifest = json.loads(files["weekly_manifest.json"])
+    event_file = next(item for item in manifest["files"] if item["name"] == "political_events.csv")
+    assert event_file["row_count"] == 1
+
+
+def test_event_date_outside_period_is_filtered_including_next_monday() -> None:
+    source = EVENTS + b"next,2026-07-13,MSFT,public_mention,neutral,high,https://example.test/next,note\n"
+    files = build(source_events=source)
+    assert files["political_events.csv"] == EVENTS
+
+
+def test_malformed_event_date_fails_closed() -> None:
+    source = EVENTS + b"bad,not-a-date,MSFT,public_mention,neutral,high,https://example.test/bad,note\n"
+    with pytest.raises(WeeklyArtifactError) as error:
+        build(source_events=source)
+    assert error.value.code == "events_date_invalid"
+
+
+def test_zero_event_week_is_allowed() -> None:
+    files = build(source_events=b"event_id,event_date,symbol,event_type,direction,confidence,source_url,notes\n")
+    manifest = json.loads(files["weekly_manifest.json"])
+    event_file = next(item for item in manifest["files"] if item["name"] == "political_events.csv")
+    assert event_file["row_count"] == 0
+    assert files["political_events.csv"].endswith(b"\n")
+
+
+def test_incoming_complete_false_is_not_overridden() -> None:
+    with pytest.raises(WeeklyArtifactError):
+        build(feed_status=feed_status(complete=False))
 
 
 def test_manifest_file_tamper_is_rejected() -> None:

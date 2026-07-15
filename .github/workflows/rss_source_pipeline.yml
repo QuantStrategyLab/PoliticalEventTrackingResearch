@@ -85,32 +85,6 @@ jobs:
             --watchlist "${WATCHLIST_PATH}" \
             --events data/output/rss_source_pipeline/source_events.csv \
             --output data/output/rss_source_pipeline/source_tracker.csv
-      - name: Build completed weekly producer artifact
-        env:
-          PERIOD_START: ${{ github.event.inputs.period_start || '' }}
-          AS_OF: ${{ github.event.inputs.as_of || '' }}
-          WATCHLIST_PATH: ${{ github.event.inputs.watchlist_path || 'data/live/political_watchlist.csv' }}
-        run: |
-          set -euo pipefail
-          test "${GITHUB_RUN_ATTEMPT}" = "1"
-          mkdir -p data/output/political-event-weekly-v1
-          ARGS=(
-            --generated-at "$(date -u +%Y-%m-%dT%H:%M:%S.000000Z)"
-            --workflow-ref "${GITHUB_WORKFLOW_REF}"
-            --source-run-id "${GITHUB_RUN_ID}"
-            --producer-ref "${GITHUB_SHA}"
-            --source-events data/output/rss_source_pipeline/source_events.csv
-            --watchlist "${WATCHLIST_PATH}"
-            --feed-status data/output/rss_source_pipeline/source_fetch_status.json
-            --output-dir data/output/political-event-weekly-v1
-          )
-          if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
-            ARGS+=(--scheduled-today "$(date -u +%F)" --run-mode scheduled)
-          else
-            test -n "${PERIOD_START}" && test -n "${AS_OF}"
-            ARGS+=(--period-start "${PERIOD_START}" --as-of "${AS_OF}" --run-mode manual)
-          fi
-          python scripts/build_weekly_artifact.py "${ARGS[@]}"
       - name: Publish live CSV outputs to repository
         env:
           COMMIT_OUTPUTS: ${{ github.event_name == 'schedule' && 'true' || github.event.inputs.commit_outputs || 'false' }}
@@ -143,6 +117,32 @@ jobs:
             git commit -m "Update live RSS source events [skip ci]"
             git push
           fi
+      - name: Build completed weekly producer artifact
+        env:
+          PERIOD_START: ${{ github.event.inputs.period_start || '' }}
+          AS_OF: ${{ github.event.inputs.as_of || '' }}
+          WATCHLIST_PATH: ${{ github.event.inputs.watchlist_path || 'data/live/political_watchlist.csv' }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_RUN_ATTEMPT}" = "1"
+          mkdir -p data/output/political-event-weekly-v1
+          ARGS=(
+            --generated-at "$(date -u +%Y-%m-%dT%H:%M:%S.000000Z)"
+            --workflow-ref "${GITHUB_WORKFLOW_REF}"
+            --source-run-id "${GITHUB_RUN_ID}"
+            --producer-ref "${GITHUB_SHA}"
+            --source-events data/output/rss_source_pipeline/source_events.csv
+            --watchlist "${WATCHLIST_PATH}"
+            --feed-status data/output/rss_source_pipeline/source_fetch_status.json
+            --output-dir data/output/political-event-weekly-v1
+          )
+          if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
+            ARGS+=(--scheduled-today "$(date -u +%F)" --run-mode scheduled)
+          else
+            test -n "${PERIOD_START}" && test -n "${AS_OF}"
+            ARGS+=(--period-start "${PERIOD_START}" --as-of "${AS_OF}" --run-mode manual)
+          fi
+          python scripts/build_weekly_artifact.py "${ARGS[@]}"
       - name: Upload RSS source artifact
         uses: actions/upload-artifact@v7
         with:

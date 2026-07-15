@@ -24,6 +24,11 @@ political_event_weekly.json
 weekly_manifest.json
 ```
 
+The producer filters `political_events.csv` to the locked inclusive date range
+before writing it; malformed `event_date` fails closed. The original source
+events/watchlist input snapshot digest remains in `period_lock.json`, while the
+filtered event bytes and row count are bound by the artifact manifest.
+
 The manifest binds the first four files by name, byte length and SHA-256. It also
 records CSV headers/row counts, period/as-of/generated-at, producer SHA,
 workflow ref, run id/attempt, source snapshot digest/provenance, and complete
