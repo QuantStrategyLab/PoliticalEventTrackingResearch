@@ -159,20 +159,20 @@ def test_fetch_rss_sources_can_continue_and_write_status(tmp_path: Path) -> None
     output = tmp_path / "source_items.csv"
     status = tmp_path / "status.json"
 
-    rows = fetch_rss_sources(
-        feeds_path,
-        output,
-        continue_on_feed_error=True,
-        status_output=status,
-        fetcher=fake_fetch,
-    )
+    with pytest.raises(RuntimeError, match="all configured"):
+        fetch_rss_sources(
+            feeds_path,
+            output,
+            continue_on_feed_error=True,
+            status_output=status,
+            fetcher=fake_fetch,
+        )
 
-    assert len(rows) == 1
     payload = json.loads(status.read_text(encoding="utf-8"))
     assert payload["successful_feed_count"] == 1
     assert payload["failed_feed_count"] == 1
-    assert payload["feeds"][1]["feed_id"] == "bad"
-    assert "RuntimeError" in payload["feeds"][1]["error"]
+    assert payload["feeds"][0]["feed_id"] == "bad"
+    assert payload["feeds"][0]["error_code"] == "fetch_failed"
 
 
 def test_fetch_rss_sources_fails_when_all_feeds_fail(tmp_path: Path) -> None:
@@ -193,4 +193,95 @@ def test_fetch_rss_sources_fails_when_all_feeds_fail(tmp_path: Path) -> None:
             continue_on_feed_error=True,
             status_output=tmp_path / "status.json",
             fetcher=fake_fetch,
+        )
+
+
+def test_all_quarantined_writes_incomplete_status_without_hard_failure(tmp_path: Path) -> None:
+    feeds_path = tmp_path / "feeds.csv"
+    feeds_path.write_text(
+        "feed_id,feed_url,source_type,author\nempty,https://example.invalid/empty,official,\n",
+        encoding="utf-8",
+    )
+    rows = fetch_rss_sources(
+        feeds_path,
+        tmp_path / "items.csv",
+        status_output=tmp_path / "status.json",
+        fetcher=lambda _url: b"<rss version='2.0'><channel/></rss>",
+    )
+    assert rows == []
+    status = json.loads((tmp_path / "status.json").read_text(encoding="utf-8"))
+    assert status["publication_complete"] is False
+    assert status["eligible_for_live_publication"] is False
+    assert status["quarantined_feed_count"] == 1
+
+
+def test_failed_and_quarantined_writes_evidence_then_hard_fails(tmp_path: Path) -> None:
+    feeds_path = tmp_path / "feeds.csv"
+    feeds_path.write_text(
+        "feed_id,feed_url,source_type,author\n"
+        "empty,https://example.invalid/empty,official,\n"
+        "bad,https://example.invalid/bad,official,\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="all configured"):
+        fetch_rss_sources(
+            feeds_path,
+            tmp_path / "items.csv",
+            continue_on_feed_error=True,
+            status_output=tmp_path / "status.json",
+            fetcher=lambda url: (
+                b"<rss version='2.0'><channel/></rss>"
+                if url.endswith("empty")
+                else (_ for _ in ()).throw(RuntimeError("blocked"))
+            ),
+        )
+    status = json.loads((tmp_path / "status.json").read_text(encoding="utf-8"))
+    assert status["failed_feed_count"] == 1
+    assert status["quarantined_feed_count"] == 1
+    assert status["eligible_for_live_publication"] is False
+
+
+def test_accepted_and_quarantined_returns_rows_but_incomplete(tmp_path: Path) -> None:
+    feeds_path = tmp_path / "feeds.csv"
+    feeds_path.write_text(
+        "feed_id,feed_url,source_type,author\n"
+        "empty,https://example.invalid/empty,official,\n"
+        "good,https://example.invalid/good,official,\n",
+        encoding="utf-8",
+    )
+    payload = (
+        b"<rss version='2.0'><channel><item><title>event</title>"
+        b"<link>https://example.test/e</link></item></channel></rss>"
+    )
+    rows = fetch_rss_sources(
+        feeds_path,
+        tmp_path / "items.csv",
+        status_output=tmp_path / "status.json",
+        fetcher=lambda url: b"<rss version='2.0'><channel/></rss>" if url.endswith("empty") else payload,
+    )
+    assert len(rows) == 1
+    status = json.loads((tmp_path / "status.json").read_text(encoding="utf-8"))
+    assert status["accepted_row_count"] == 1
+    assert status["publication_complete"] is False
+
+
+def test_empty_feed_configuration_is_invalid(tmp_path: Path) -> None:
+    feeds_path = tmp_path / "feeds.csv"
+    feeds_path.write_text("feed_id,feed_url,source_type,author\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="feed_config_empty"):
+        fetch_rss_sources(feeds_path, tmp_path / "items.csv")
+
+
+def test_base_exception_is_not_converted_to_feed_result(tmp_path: Path) -> None:
+    feeds_path = tmp_path / "feeds.csv"
+    feeds_path.write_text(
+        "feed_id,feed_url,source_type,author\nbad,https://example.invalid/bad,official,\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(KeyboardInterrupt):
+        fetch_rss_sources(
+            feeds_path,
+            tmp_path / "items.csv",
+            fetcher=lambda _url: (_ for _ in ()).throw(KeyboardInterrupt()),
         )
