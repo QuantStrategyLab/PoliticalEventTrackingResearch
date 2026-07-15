@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 
@@ -16,6 +17,17 @@ def test_weekly_workflow_uses_pinned_actions_and_explicit_contract_inputs() -> N
     assert "retention-days: 30" in text
     assert "if-no-files-found: error" in text
     assert 'cron: "15 0 * * 1"' in text
+    upload_steps = re.findall(r"^      - name: Upload.*?(?=^      - name:|\Z)", text, re.MULTILINE | re.DOTALL)
+    assert len(upload_steps) == 2
+    broad, dedicated = upload_steps
+    assert "weekly_manifest.json" not in broad
+    assert "source_items.csv" in broad
+    assert "source_events.csv" in broad
+    assert "source_tracker.csv" in broad
+    assert "source_fetch_status.json" in broad
+    assert dedicated.count("weekly_manifest.json") == 1
+    assert "name: political-event-weekly-v1" in dedicated
+    assert "path: data/output/rss_source_pipeline/weekly-artifact/weekly_manifest.json" in dedicated
     for line in text.splitlines():
         if "uses: actions/" in line:
             assert len(line.split("@", 1)[1].split()[0]) == 40
