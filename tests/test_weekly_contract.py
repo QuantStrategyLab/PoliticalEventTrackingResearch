@@ -69,6 +69,14 @@ def test_scheduled_and_manual_are_explicit():
         parse_weekly_contract({key: value for key, value in payload().items() if key != "as_of"})
 
 
+def test_real_feed_counters_round_trip_without_serializer_defaults():
+    status = {"feed_count": 12, "successful_feed_count": 12, "failed_feed_count": 0, "stale_feed_count": 0, "missing_feed_count": 0, "complete": True}
+    contract = parse_weekly_contract(payload(feed_status=status))
+    encoded = serialize_weekly_contract(contract)
+    assert b'"feed_count":12' in encoded
+    assert parse_weekly_contract(__import__("json").loads(encoded)).feed_status == contract.feed_status
+
+
 @pytest.mark.parametrize("status", [
     {"feed_count": 9, "successful_feed_count": 8, "failed_feed_count": 1, "stale_feed_count": 0, "missing_feed_count": 0, "complete": True},
     {"feed_count": 9, "successful_feed_count": 9, "failed_feed_count": 0, "stale_feed_count": 1, "missing_feed_count": 0, "complete": True},
@@ -90,6 +98,25 @@ def test_artifacts_are_sorted_and_duplicate_or_unsafe_inputs_fail_closed():
         parse_weekly_contract(payload(source_artifacts=[items[0], items[0]]))
     with pytest.raises(WeeklyContractError):
         parse_weekly_contract(payload(source_artifacts=[{"path": "../secret", "sha256": "c" * 64, "row_count": 1}]))
+    for alias in ("a//b.csv", "a/b.csv/", "./a.csv", "a/./b.csv", "a\\b.csv", "é.csv"):
+        with pytest.raises(WeeklyContractError):
+            parse_weekly_contract(payload(source_artifacts=[{"path": alias, "sha256": "c" * 64, "row_count": 1}]))
+
+
+@pytest.mark.parametrize("field", ["row_count", "feed_count", "successful_feed_count"])
+def test_wire_integers_use_safe_json_range_and_reject_bool(field):
+    artifact = {"path": "data/live/political_events.csv", "sha256": "b" * 64, "row_count": 11}
+    status = payload()["feed_status"]
+    if field == "row_count":
+        with pytest.raises(WeeklyContractError):
+            parse_weekly_contract(payload(source_artifacts=[{**artifact, "row_count": 2**53}]))
+        with pytest.raises(WeeklyContractError):
+            parse_weekly_contract(payload(source_artifacts=[{**artifact, "row_count": True}]))
+    else:
+        with pytest.raises(WeeklyContractError):
+            parse_weekly_contract(payload(feed_status={**status, field: 2**53}))
+        with pytest.raises(WeeklyContractError):
+            parse_weekly_contract(payload(feed_status={**status, field: True}))
 
 
 def test_unknown_fields_and_wire_type_confusion_fail_closed():

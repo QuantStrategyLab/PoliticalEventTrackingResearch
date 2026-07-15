@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
@@ -12,6 +13,7 @@ from pathlib import PurePosixPath
 SCHEMA_VERSION = "1"
 CONTRACT_VERSION = "political_event_weekly.v1"
 CADENCE = "weekly"
+MAX_SAFE_JSON_INTEGER = 2**53 - 1
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _TIMESTAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -44,6 +46,7 @@ class WeeklyFeedStatus:
     failed_feed_count: int
     stale_feed_count: int
     missing_feed_count: int
+    complete: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,23 +91,28 @@ def _artifact(value: object) -> WeeklySourceArtifact:
     if not isinstance(value, Mapping) or set(value) != _ARTIFACT_KEYS:
         raise _invalid("source_artifact_invalid")
     path = value["path"]
-    if type(path) is not str or not path or PurePosixPath(path).is_absolute() or ".." in PurePosixPath(path).parts or "\\" in path:
+    canonical = PurePosixPath(path) if type(path) is str else None
+    if (
+        type(path) is not str or not path or not path.isascii() or unicodedata.normalize("NFC", path) != path
+        or canonical is None or canonical.is_absolute() or path != str(canonical) or path.endswith("/")
+        or "//" in path or any(part in {"", ".", ".."} for part in canonical.parts) or "\\" in path
+    ):
         raise _invalid("source_artifact_invalid")
     digest = value["sha256"]
     row_count = value["row_count"]
-    if type(digest) is not str or not _SHA256_RE.fullmatch(digest) or type(row_count) is not int or row_count < 0:
+    if type(digest) is not str or not _SHA256_RE.fullmatch(digest) or type(row_count) is not int or not 0 <= row_count <= MAX_SAFE_JSON_INTEGER:
         raise _invalid("source_artifact_invalid")
     return WeeklySourceArtifact(path, digest, row_count)
 
 
 def _feed_status(value: object) -> WeeklyFeedStatus:
-    if not isinstance(value, Mapping) or set(value) != _FEED_KEYS or value.get("complete") is not True:
+    if not isinstance(value, Mapping) or set(value) != _FEED_KEYS or type(value.get("complete")) is not bool:
         raise _invalid("feed_status_invalid")
     values = [value[key] for key in _FEED_KEYS if key != "complete"]
-    if any(type(item) is not int or item < 0 for item in values):
+    if any(type(item) is not int or not 0 <= item <= MAX_SAFE_JSON_INTEGER for item in values):
         raise _invalid("feed_status_invalid")
-    status = WeeklyFeedStatus(*(value[key] for key in ("feed_count", "successful_feed_count", "failed_feed_count", "stale_feed_count", "missing_feed_count")))
-    if status.feed_count <= 0 or status.successful_feed_count != status.feed_count or any((status.failed_feed_count, status.stale_feed_count, status.missing_feed_count)):
+    status = WeeklyFeedStatus(*(value[key] for key in ("feed_count", "successful_feed_count", "failed_feed_count", "stale_feed_count", "missing_feed_count")), value["complete"])
+    if status.feed_count <= 0 or status.successful_feed_count != status.feed_count or any((status.failed_feed_count, status.stale_feed_count, status.missing_feed_count)) or not status.complete:
         raise _invalid("feed_status_incomplete")
     return status
 
@@ -148,7 +156,7 @@ def serialize_weekly_contract(contract: WeeklySourceContract) -> bytes:
             "generated_at": contract.generated_at.isoformat(timespec="microseconds").replace("+00:00", "Z"),
             "run_mode": contract.run_mode, "producer_ref": contract.producer_ref, "source_provenance": contract.source_provenance,
             "source_artifacts": [{"path": item.path, "sha256": item.sha256, "row_count": item.row_count} for item in contract.source_artifacts],
-            "feed_status": {"feed_count": contract.feed_status.feed_count, "successful_feed_count": contract.feed_status.successful_feed_count, "failed_feed_count": 0, "stale_feed_count": 0, "missing_feed_count": 0, "complete": True},
+            "feed_status": {"feed_count": contract.feed_status.feed_count, "successful_feed_count": contract.feed_status.successful_feed_count, "failed_feed_count": contract.feed_status.failed_feed_count, "stale_feed_count": contract.feed_status.stale_feed_count, "missing_feed_count": contract.feed_status.missing_feed_count, "complete": contract.feed_status.complete},
         }
     except (AttributeError, TypeError, ValueError, OverflowError):
         raise _invalid("contract_invalid") from None
