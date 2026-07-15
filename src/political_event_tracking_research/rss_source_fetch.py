@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import datetime as dt
 import email.utils
 import hashlib
 import html
+import io
 import json
 import re
 import urllib.request
@@ -15,7 +17,8 @@ from pathlib import Path
 import defusedxml.ElementTree as ET
 from defusedxml.common import DefusedXmlException
 
-from .csv_utils import read_csv_rows, write_csv_rows
+from .csv_utils import read_csv_rows
+from .feed_status_canonical_h2c import DecisionContractError, DecisionKind, build_decision, read_status
 
 
 USER_AGENT = (
@@ -23,6 +26,7 @@ USER_AGENT = (
     "+https://github.com/QuantStrategyLab/PoliticalEventTrackingResearch)"
 )
 MAX_XML_BYTES = 1024 * 1024
+SOURCE_ITEM_FIELDS = ("item_id", "published_at", "source_type", "source_url", "author", "text")
 
 
 @dataclass(frozen=True)
@@ -37,18 +41,26 @@ class FeedConfig:
 class FeedFetchStatus:
     feed_id: str
     feed_url: str
-    ok: bool
-    item_count: int
-    error: str = ""
+    kind: str
+    state: str
+    rows: tuple[dict[str, str], ...] = ()
+    error_code: str | None = None
 
-    def to_json(self) -> dict[str, object]:
+    def to_outcome(self) -> dict[str, object]:
         return {
             "feed_id": self.feed_id,
             "feed_url": self.feed_url,
-            "ok": self.ok,
-            "item_count": self.item_count,
-            "error": self.error,
+            "kind": self.kind,
+            "state": self.state,
+            "rows": list(self.rows),
+            "error_code": self.error_code,
         }
+
+
+class FetchStatusError(ValueError):
+    def __init__(self, code: str):
+        super().__init__(code)
+        self.code = code
 
 
 class FeedXmlError(ValueError):
@@ -131,39 +143,30 @@ def stable_item_id(feed_id: str, link: str, title: str) -> str:
     return f"{feed_id}-{digest}"
 
 
-def parse_feed_items(feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25) -> list[dict[str, str]]:
-    if type(feed_bytes) is not bytes:
-        raise FeedXmlError("feed_xml_invalid")
-    if len(feed_bytes) > MAX_XML_BYTES:
-        raise FeedXmlError("feed_xml_oversize")
-    try:
-        root = ET.fromstring(feed_bytes, forbid_dtd=True, forbid_entities=True, forbid_external=True)
-    except (DefusedXmlException, ET.ParseError, LookupError, UnicodeError, ValueError, RecursionError):
-        raise FeedXmlError("feed_xml_invalid") from None
+def _parse_rss_rows(items: list[ET.Element], feed: FeedConfig) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
+    for item in items:
+        title = child_text(item, ("title",))
+        link = rss_item_link(item)
+        published = child_text(item, ("pubDate", "{http://purl.org/dc/elements/1.1/}date"))
+        description = child_text(item, ("description", "{http://purl.org/rss/1.0/modules/content/}encoded"))
+        text = " ".join(part for part in (title, strip_html(description)) if part)
+        rows.append(
+            {
+                "item_id": stable_item_id(feed.feed_id, link, title),
+                "published_at": parse_datetime(published),
+                "source_type": feed.source_type,
+                "source_url": link,
+                "author": feed.author,
+                "text": text,
+            }
+        )
+    return rows
 
-    rss_items = root.findall("./channel/item")
-    if rss_items:
-        for item in rss_items[:max_items]:
-            title = child_text(item, ("title",))
-            link = rss_item_link(item)
-            published = child_text(item, ("pubDate", "{http://purl.org/dc/elements/1.1/}date"))
-            description = child_text(item, ("description", "{http://purl.org/rss/1.0/modules/content/}encoded"))
-            text = " ".join(part for part in (title, strip_html(description)) if part)
-            rows.append(
-                {
-                    "item_id": stable_item_id(feed.feed_id, link, title),
-                    "published_at": parse_datetime(published),
-                    "source_type": feed.source_type,
-                    "source_url": link,
-                    "author": feed.author,
-                    "text": text,
-                }
-            )
-        return rows
 
-    atom_entries = root.findall("{http://www.w3.org/2005/Atom}entry")
-    for entry in atom_entries[:max_items]:
+def _parse_atom_rows(entries: list[ET.Element], feed: FeedConfig) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for entry in entries:
         title = child_text(entry, ("{http://www.w3.org/2005/Atom}title", "title"))
         link = atom_entry_link(entry)
         published = child_text(
@@ -185,22 +188,72 @@ def parse_feed_items(feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25
     return rows
 
 
-def utc_now_iso() -> str:
-    return dt.datetime.now(dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+def parse_feed_snapshot(
+    feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25
+) -> tuple[str, list[dict[str, str]]]:
+    if type(feed_bytes) is not bytes:
+        raise FeedXmlError("feed_xml_invalid")
+    if len(feed_bytes) > MAX_XML_BYTES:
+        raise FeedXmlError("feed_xml_oversize")
+    try:
+        root = ET.fromstring(feed_bytes, forbid_dtd=True, forbid_entities=True, forbid_external=True)
+    except (DefusedXmlException, ET.ParseError, LookupError, UnicodeError, ValueError, RecursionError):
+        raise FeedXmlError("feed_xml_invalid") from None
+    if root.tag == "rss":
+        channel = root.find("./channel")
+        if channel is None:
+            raise FeedXmlError("feed_xml_invalid")
+        return "rss2", _parse_rss_rows(channel.findall("./item")[:max_items], feed)
+    if root.tag == "{http://www.w3.org/2005/Atom}feed":
+        return "atom", _parse_atom_rows(root.findall("{http://www.w3.org/2005/Atom}entry")[:max_items], feed)
+    raise FeedXmlError("feed_xml_invalid")
 
 
-def write_fetch_status(path: str | Path, statuses: list[FeedFetchStatus], *, item_count: int) -> None:
-    payload = {
-        "generated_at": utc_now_iso(),
-        "feed_count": len(statuses),
-        "successful_feed_count": sum(1 for item in statuses if item.ok),
-        "failed_feed_count": sum(1 for item in statuses if not item.ok),
-        "item_count": item_count,
-        "feeds": [item.to_json() for item in statuses],
-    }
+def parse_feed_items(feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25) -> list[dict[str, str]]:
+    return parse_feed_snapshot(feed_bytes, feed, max_items=max_items)[1]
+
+
+def _build_status(statuses: list[FeedFetchStatus]):
+    if not statuses:
+        raise FetchStatusError("feed_config_empty")
+    try:
+        decision = build_decision(item.to_outcome() for item in statuses)
+        read_status(decision.status_bytes)
+    except DecisionContractError as exc:
+        raise FetchStatusError(exc.code) from None
+    return decision
+
+
+def write_fetch_status(path: str | Path, statuses: list[FeedFetchStatus]) -> DecisionKind:
+    decision = _build_status(statuses)
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    output_path.write_bytes(decision.status_bytes)
+    return decision.decision.kind
+
+
+def serialize_source_items(rows: list[dict[str, str]]) -> bytes:
+    buffer = io.StringIO(newline="")
+    writer = csv.DictWriter(buffer, fieldnames=SOURCE_ITEM_FIELDS, lineterminator="\n")
+    writer.writeheader()
+    for row in rows:
+        writer.writerow({key: row.get(key, "") for key in SOURCE_ITEM_FIELDS})
+    return buffer.getvalue().encode("utf-8")
+
+
+def readback_source_items(path: str | Path, expected_bytes: bytes, expected_rows: list[dict[str, str]]) -> None:
+    try:
+        actual_bytes = Path(path).read_bytes()
+        if actual_bytes != expected_bytes:
+            raise FetchStatusError("source_items_bytes_mismatch")
+        reader = csv.DictReader(io.StringIO(actual_bytes.decode("utf-8"), newline=""))
+        if tuple(reader.fieldnames or ()) != SOURCE_ITEM_FIELDS:
+            raise FetchStatusError("source_items_schema_invalid")
+        actual_rows = [dict(row) for row in reader]
+    except (OSError, UnicodeError, csv.Error):
+        raise FetchStatusError("source_items_readback_invalid") from None
+    if actual_rows != expected_rows or serialize_source_items(actual_rows) != actual_bytes:
+        raise FetchStatusError("source_items_rows_mismatch")
 
 
 def fetch_rss_sources(
@@ -214,39 +267,61 @@ def fetch_rss_sources(
 ) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     statuses: list[FeedFetchStatus] = []
-    for feed in load_feed_config(feeds_path):
+    feeds = load_feed_config(feeds_path)
+    if not feeds:
+        raise FetchStatusError("feed_config_empty")
+    for index, feed in enumerate(feeds):
         try:
-            feed_rows = parse_feed_items(fetcher(feed.feed_url), feed, max_items=max_items_per_feed)
-        except Exception as exc:
+            kind, feed_rows = parse_feed_snapshot(fetcher(feed.feed_url), feed, max_items=max_items_per_feed)
+        except Exception:
             statuses.append(
                 FeedFetchStatus(
                     feed_id=feed.feed_id,
                     feed_url=feed.feed_url,
-                    ok=False,
-                    item_count=0,
-                    error=f"{type(exc).__name__}: {exc}",
+                    kind="unknown",
+                    state="failed",
+                    error_code="fetch_failed",
                 )
             )
             if not continue_on_feed_error:
-                raise
+                statuses.extend(
+                    FeedFetchStatus(
+                        feed_id=remaining.feed_id,
+                        feed_url=remaining.feed_url,
+                        kind="unknown",
+                        state="failed",
+                        error_code="not_attempted",
+                    )
+                    for remaining in feeds[index + 1 :]
+                )
+                break
             continue
         rows.extend(feed_rows)
         statuses.append(
             FeedFetchStatus(
                 feed_id=feed.feed_id,
                 feed_url=feed.feed_url,
-                ok=True,
-                item_count=len(feed_rows),
+                kind=kind,
+                state="accepted" if feed_rows else "quarantined",
+                rows=tuple(feed_rows),
+                error_code=None if feed_rows else "zero_entries",
             )
         )
-    if statuses and not any(item.ok for item in statuses):
-        if status_output:
-            write_fetch_status(status_output, statuses, item_count=0)
-        raise RuntimeError("all configured RSS/Atom feeds failed")
     rows.sort(key=lambda row: (row["published_at"], row["item_id"]))
-    write_csv_rows(output_path, ["item_id", "published_at", "source_type", "source_url", "author", "text"], rows)
+    source_bytes = serialize_source_items(rows)
+    output_file = Path(output_path)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    output_file.write_bytes(source_bytes)
+    readback_source_items(output_file, source_bytes, rows)
+    decision = _build_status(statuses)
     if status_output:
-        write_fetch_status(status_output, statuses, item_count=len(rows))
+        status_file = Path(status_output)
+        status_file.parent.mkdir(parents=True, exist_ok=True)
+        status_file.write_bytes(decision.status_bytes)
+        if read_status(status_file.read_bytes()) != json.loads(decision.status_bytes):
+            raise FetchStatusError("fetch_status_readback_mismatch")
+    if decision.decision.kind is DecisionKind.HARD_FAIL:
+        raise RuntimeError("feed_fetch_failed")
     return rows
 
 

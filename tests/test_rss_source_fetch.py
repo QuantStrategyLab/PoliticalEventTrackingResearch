@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from political_event_tracking_research import rss_source_fetch
+from political_event_tracking_research.feed_status_canonical_h2c import read_status
 from political_event_tracking_research.rss_source_fetch import FeedConfig, fetch_rss_sources, parse_feed_items
 
 
@@ -159,20 +160,22 @@ def test_fetch_rss_sources_can_continue_and_write_status(tmp_path: Path) -> None
     output = tmp_path / "source_items.csv"
     status = tmp_path / "status.json"
 
-    rows = fetch_rss_sources(
-        feeds_path,
-        output,
-        continue_on_feed_error=True,
-        status_output=status,
-        fetcher=fake_fetch,
-    )
+    with pytest.raises(RuntimeError, match="feed_fetch_failed"):
+        fetch_rss_sources(
+            feeds_path,
+            output,
+            continue_on_feed_error=True,
+            status_output=status,
+            fetcher=fake_fetch,
+        )
 
-    assert len(rows) == 1
-    payload = json.loads(status.read_text(encoding="utf-8"))
+    assert output.exists()
+    payload = read_status(status.read_bytes())
     assert payload["successful_feed_count"] == 1
     assert payload["failed_feed_count"] == 1
-    assert payload["feeds"][1]["feed_id"] == "bad"
-    assert "RuntimeError" in payload["feeds"][1]["error"]
+    failed = next(item for item in payload["feeds"] if item["feed_id"] == "bad")
+    assert failed["state"] == "failed"
+    assert failed["error_code"] == "fetch_failed"
 
 
 def test_fetch_rss_sources_fails_when_all_feeds_fail(tmp_path: Path) -> None:
@@ -186,7 +189,7 @@ def test_fetch_rss_sources_fails_when_all_feeds_fail(tmp_path: Path) -> None:
     def fake_fetch(_url: str) -> bytes:
         raise RuntimeError("blocked")
 
-    with pytest.raises(RuntimeError, match="all configured"):
+    with pytest.raises(RuntimeError, match="feed_fetch_failed"):
         fetch_rss_sources(
             feeds_path,
             tmp_path / "source_items.csv",
