@@ -48,6 +48,35 @@ class FeedFetchStatus:
         }
 
 
+class FetchStatusError(ValueError):
+    def __init__(self, code: str) -> None:
+        self.code = code
+        super().__init__(code)
+
+
+def validate_fetch_status(payload: object) -> bool:
+    required = {"generated_at", "feed_count", "successful_feed_count", "failed_feed_count", "item_count", "feeds"}
+    entry_keys = {"feed_id", "feed_url", "ok", "item_count", "error"}
+    if not isinstance(payload, dict) or set(payload) != required or not isinstance(payload["feeds"], list):
+        raise FetchStatusError("fetch_status_shape_invalid")
+    counters = ("feed_count", "successful_feed_count", "failed_feed_count", "item_count")
+    if type(payload["generated_at"]) is not str or any(type(payload[key]) is not int or payload[key] < 0 for key in counters):
+        raise FetchStatusError("fetch_status_counter_invalid")
+    feeds = payload["feeds"]
+    if len(feeds) != payload["feed_count"]:
+        raise FetchStatusError("fetch_status_counter_invalid")
+    successful = 0
+    total_items = 0
+    for feed in feeds:
+        if not isinstance(feed, dict) or set(feed) != entry_keys or type(feed["feed_id"]) is not str or type(feed["feed_url"]) is not str or type(feed["ok"]) is not bool or type(feed["item_count"]) is not int or feed["item_count"] < 0 or type(feed["error"]) is not str:
+            raise FetchStatusError("fetch_status_entry_invalid")
+        successful += int(feed["ok"])
+        total_items += feed["item_count"]
+    if successful != payload["successful_feed_count"] or payload["feed_count"] - successful != payload["failed_feed_count"] or total_items != payload["item_count"]:
+        raise FetchStatusError("fetch_status_counter_invalid")
+    return payload["failed_feed_count"] == 0
+
+
 def load_feed_config(path: str | Path) -> list[FeedConfig]:
     feeds: list[FeedConfig] = []
     for row in read_csv_rows(path):
