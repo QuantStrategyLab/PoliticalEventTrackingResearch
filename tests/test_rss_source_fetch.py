@@ -7,7 +7,12 @@ from unittest.mock import patch
 import pytest
 
 from political_event_tracking_research import rss_source_fetch
-from political_event_tracking_research.rss_source_fetch import FeedConfig, fetch_rss_sources, parse_feed_items
+from political_event_tracking_research.rss_source_fetch import (
+    FeedConfig,
+    fetch_rss_sources,
+    parse_feed_items,
+    parse_feed_snapshot,
+)
 
 
 def test_parse_rss_feed_items_to_source_items() -> None:
@@ -68,6 +73,34 @@ def test_parse_atom_feed_items_to_source_items() -> None:
     assert rows[0]["published_at"] == "2026-05-02T10:00:00Z"
     assert rows[0]["source_url"] == "https://www.sec.gov/example/evt2"
     assert "EVT2" in rows[0]["text"]
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected_kind"),
+    [
+        (b"<rss version='2.0'><channel/></rss>", "rss2"),
+        (b"<feed xmlns='http://www.w3.org/2005/Atom'/>", "atom"),
+    ],
+)
+def test_empty_rss_and_atom_preserve_explicit_kind(payload: bytes, expected_kind: str) -> None:
+    parsed = parse_feed_snapshot(payload, FeedConfig("x", "https://example.test", "official", ""))
+    assert parsed.feed_kind == expected_kind
+    assert parsed.entries == ()
+    assert parse_feed_items(payload, FeedConfig("x", "https://example.test", "official", "")) == []
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        b"<rss version='2.0'><channelx/></rss>",
+        b"<rss version='2.0'><channel/><channel/></rss>",
+        b"<feed xmlns='http://www.w3.org/2005/Atom'><entryx/></feed>",
+        b"<feed xmlns='http://www.w3.org/2005/AtomX'><entry/></feed>",
+    ],
+)
+def test_near_match_roots_and_containers_fail_closed(payload: bytes) -> None:
+    with pytest.raises(ValueError, match="feed_schema_invalid"):
+        parse_feed_snapshot(payload, FeedConfig("x", "https://example.test", "official", ""))
 
 
 @pytest.mark.parametrize(
@@ -171,8 +204,8 @@ def test_fetch_rss_sources_can_continue_and_write_status(tmp_path: Path) -> None
     payload = json.loads(status.read_text(encoding="utf-8"))
     assert payload["successful_feed_count"] == 1
     assert payload["failed_feed_count"] == 1
-    assert payload["feeds"][1]["feed_id"] == "bad"
-    assert "RuntimeError" in payload["feeds"][1]["error"]
+    assert payload["feeds"][0]["feed_id"] == "bad"
+    assert payload["feeds"][0]["error_code"] == "fetch_failed"
 
 
 def test_fetch_rss_sources_fails_when_all_feeds_fail(tmp_path: Path) -> None:
@@ -194,3 +227,31 @@ def test_fetch_rss_sources_fails_when_all_feeds_fail(tmp_path: Path) -> None:
             status_output=tmp_path / "status.json",
             fetcher=fake_fetch,
         )
+
+
+def test_fetch_rss_sources_preserves_empty_feed_kind_and_quarantines(tmp_path: Path) -> None:
+    feeds_path = tmp_path / "feeds.csv"
+    feeds_path.write_text(
+        "feed_id,feed_url,source_type,author\n"
+        "atom,https://example.invalid/atom,official,Example\n"
+        "rss,https://example.invalid/rss,official,Example\n",
+        encoding="utf-8",
+    )
+    payloads = {
+        "https://example.invalid/atom": b"<feed xmlns='http://www.w3.org/2005/Atom'/>",
+        "https://example.invalid/rss": b"<rss version='2.0'><channel><title>Empty</title></channel></rss>",
+    }
+
+    output = tmp_path / "source_items.csv"
+    status = tmp_path / "status.json"
+    rows = fetch_rss_sources(feeds_path, output, status_output=status, fetcher=payloads.__getitem__)
+
+    assert rows == []
+    assert output.read_text(encoding="utf-8") == "item_id,published_at,source_type,source_url,author,text\n"
+    payload = json.loads(status.read_text(encoding="utf-8"))
+    assert [(item["feed_id"], item["kind"], item["state"]) for item in payload["feeds"]] == [
+        ("atom", "atom", "quarantined"),
+        ("rss", "rss2", "quarantined"),
+    ]
+    assert payload["accepted_row_count"] == 0
+    assert payload["publication_complete"] is False
