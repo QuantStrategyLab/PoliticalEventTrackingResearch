@@ -7,7 +7,12 @@ from unittest.mock import patch
 import pytest
 
 from political_event_tracking_research import rss_source_fetch
-from political_event_tracking_research.rss_source_fetch import FeedConfig, fetch_rss_sources, parse_feed_items
+from political_event_tracking_research.rss_source_fetch import (
+    FeedConfig,
+    fetch_rss_sources,
+    parse_feed_items,
+    parse_feed_snapshot,
+)
 
 
 def test_parse_rss_feed_items_to_source_items() -> None:
@@ -68,6 +73,34 @@ def test_parse_atom_feed_items_to_source_items() -> None:
     assert rows[0]["published_at"] == "2026-05-02T10:00:00Z"
     assert rows[0]["source_url"] == "https://www.sec.gov/example/evt2"
     assert "EVT2" in rows[0]["text"]
+
+
+@pytest.mark.parametrize(
+    ("payload", "kind"),
+    [
+        (b"<rss version='2.0'><channel/></rss>", "rss2"),
+        (b"<feed xmlns='http://www.w3.org/2005/Atom'/>", "atom"),
+    ],
+)
+def test_empty_feed_preserves_kind_and_is_not_guessed_from_rows(payload: bytes, kind: str) -> None:
+    parsed = parse_feed_snapshot(payload, FeedConfig("x", "https://example.test", "official", ""))
+    assert parsed.feed_kind == kind
+    assert parsed.entries == ()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        b"<rss version='2.0'><channel/><channel/></rss>",
+        b"<rss version='2.0'><channel><x:events xmlns:x='urn:foreign'/></channel></rss>",
+        b"<rss version='2.0'><channel><channelx/></channel></rss>",
+        b"<feed xmlns='http://www.w3.org/2005/Atom'><entryx/></feed>",
+        b"<feed xmlns='http://www.w3.org/2005/Atom'><x:events xmlns:x='urn:foreign'/></feed>",
+    ],
+)
+def test_extra_or_unknown_direct_children_fail_closed(payload: bytes) -> None:
+    with pytest.raises(ValueError, match="feed_schema_invalid"):
+        parse_feed_snapshot(payload, FeedConfig("x", "https://example.test", "official", ""))
 
 
 @pytest.mark.parametrize(
@@ -171,8 +204,8 @@ def test_fetch_rss_sources_can_continue_and_write_status(tmp_path: Path) -> None
     payload = json.loads(status.read_text(encoding="utf-8"))
     assert payload["successful_feed_count"] == 1
     assert payload["failed_feed_count"] == 1
-    assert payload["feeds"][1]["feed_id"] == "bad"
-    assert "RuntimeError" in payload["feeds"][1]["error"]
+    assert payload["feeds"][0]["feed_id"] == "bad"
+    assert payload["feeds"][0]["error_code"] == "fetch_failed"
 
 
 def test_fetch_rss_sources_fails_when_all_feeds_fail(tmp_path: Path) -> None:
