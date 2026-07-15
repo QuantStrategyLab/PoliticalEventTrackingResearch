@@ -14,7 +14,13 @@ truth.
   `input_snapshot.json`, and `bundle_manifest.json` bytes plus the external
   artifact evidence. Its SHA-256 properties cover all three byte members.
 - `RerunContext` accepts only current `run_attempt=2` and reuses the original
-  context; it cannot derive a new period or snapshot.
+  context; it requires the same `run_id`, repository, and reviewed workflow
+  SHA as the original context and cannot derive a new period or snapshot.
+
+The repository is an explicit `owner/name` binding in the manifest. Untrusted
+bundle members are bounded before parsing: lock 64 KiB, snapshot 256 KiB,
+manifest 64 KiB, snapshot depth 16, object keys 64, list items 256, strings
+4096 characters, and source artifacts 64. Exceeding any bound fails closed.
 
 The canonical manifest binds the bundle version, artifact name, original run
 identity, workflow and producer SHAs, lock/snapshot versions, and exact lock

@@ -8,6 +8,10 @@ import pytest
 
 from political_event_tracking_research.weekly_period_bundle import (
     BUNDLE_VERSION,
+    MAX_SNAPSHOT_BYTES,
+    MAX_SNAPSHOT_DEPTH,
+    MAX_SNAPSHOT_STRING_LENGTH,
+    MAX_SOURCE_ARTIFACTS,
     ArtifactEvidence,
     BundleContext,
     BundleWire,
@@ -74,6 +78,7 @@ def snapshot() -> dict[str, object]:
 def context(**overrides: object) -> BundleContext:
     values: dict[str, object] = {
         "run_id": RUN_ID,
+        "repository": "QuantStrategyLab/PoliticalEventTrackingResearch",
         "workflow_sha": WORKFLOW_SHA,
         "producer_sha": PRODUCER_SHA,
         "artifact": ArtifactEvidence(
@@ -149,10 +154,36 @@ def test_context_mismatch_fails_closed(field: str) -> None:
 
 def test_same_run_attempt_two_context_is_explicit() -> None:
     bundle = build_period_bundle(context(), lock(), snapshot())
-    assert verify_rerun_context(bundle, RerunContext(context(), current_run_attempt=2)) == bundle
+    rerun = RerunContext(
+        context(),
+        current_run_id=RUN_ID,
+        current_repository="QuantStrategyLab/PoliticalEventTrackingResearch",
+        current_workflow_sha=WORKFLOW_SHA,
+        current_run_attempt=2,
+    )
+    assert verify_rerun_context(bundle, rerun) == bundle
+    for field, value in (
+        ("current_run_id", "29420000002"),
+        ("current_repository", "QuantStrategyLab/Other"),
+        ("current_workflow_sha", "1" * 40),
+    ):
+        with pytest.raises(WeeklyBundleError, match="bundle_rerun_attempt_invalid"):
+            RerunContext(
+                context(),
+                current_run_id=value if field == "current_run_id" else RUN_ID,
+                current_repository=value if field == "current_repository" else "QuantStrategyLab/PoliticalEventTrackingResearch",
+                current_workflow_sha=value if field == "current_workflow_sha" else WORKFLOW_SHA,
+                current_run_attempt=2,
+            )
     for attempt in (1, 3):
         with pytest.raises(WeeklyBundleError, match="bundle_rerun_attempt_invalid"):
-            verify_rerun_context(bundle, RerunContext(context(), current_run_attempt=attempt))
+            RerunContext(
+                context(),
+                current_run_id=RUN_ID,
+                current_repository="QuantStrategyLab/PoliticalEventTrackingResearch",
+                current_workflow_sha=WORKFLOW_SHA,
+                current_run_attempt=attempt,
+            )
 
 
 def test_missing_or_multiple_bundle_collection_fails_closed() -> None:
@@ -174,7 +205,7 @@ def test_missing_or_multiple_bundle_collection_fails_closed() -> None:
 )
 def test_artifact_metadata_is_strict(values: tuple[object, ...]) -> None:
     with pytest.raises(WeeklyBundleError):
-        BundleContext(RUN_ID, WORKFLOW_SHA, PRODUCER_SHA, ArtifactEvidence(*values), lock())
+        BundleContext(RUN_ID, "QuantStrategyLab/PoliticalEventTrackingResearch", WORKFLOW_SHA, PRODUCER_SHA, ArtifactEvidence(*values), lock())
 
 
 @pytest.mark.parametrize("mutation", ["unknown", "missing", "duplicate", "unsafe_int"])
@@ -198,12 +229,41 @@ def test_snapshot_wire_shape_is_strict(mutation: str) -> None:
         build_period_bundle(context(), lock(), base)
 
 
-def test_unexpected_runtime_error_is_not_broad_caught(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("kind", ["oversized_bytes", "deep", "artifacts", "string"])
+def test_snapshot_resource_bounds_fail_closed(kind: str) -> None:
+    bundle = build_period_bundle(context(), lock(), snapshot())
+    if kind == "oversized_bytes":
+        wire = BundleWire(
+            bundle.lock_bytes,
+            b"{" + b"a" * MAX_SNAPSHOT_BYTES,
+            bundle.manifest_bytes,
+            bundle.artifact,
+        )
+    else:
+        value = snapshot()
+        if kind == "deep":
+            nested: object = "x"
+            for _ in range(MAX_SNAPSHOT_DEPTH + 1):
+                nested = [nested]
+            value["source_provenance"] = nested
+        elif kind == "artifacts":
+            value["source_artifacts"] = value["source_artifacts"] * (MAX_SOURCE_ARTIFACTS + 1)
+        else:
+            value["source_snapshot_id"] = "a" * (MAX_SNAPSHOT_STRING_LENGTH + 1)
+        with pytest.raises(WeeklyBundleError, match="bundle_snapshot_"):
+            build_period_bundle(context(), lock(), value)
+        return
+    with pytest.raises(WeeklyBundleError, match="bundle_snapshot_oversized"):
+        verify_period_bundle(wire, context())
+
+
+@pytest.mark.parametrize("exception", [RuntimeError, SystemExit, MemoryError])
+def test_unexpected_exceptions_are_not_broad_caught(monkeypatch: pytest.MonkeyPatch, exception: type[BaseException]) -> None:
     import political_event_tracking_research.weekly_period_bundle as module
 
     def fail(*_: object, **__: object) -> bytes:
-        raise RuntimeError("programming failure")
+        raise exception("programming failure")
 
     monkeypatch.setattr(module.json, "dumps", fail)
-    with pytest.raises(RuntimeError, match="programming failure"):
+    with pytest.raises(exception, match="programming failure"):
         build_period_bundle(context(), lock(), snapshot())

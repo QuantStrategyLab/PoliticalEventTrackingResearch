@@ -29,6 +29,15 @@ _RUN_ID_RE = re.compile(r"^[1-9][0-9]*$")
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 _ARTIFACT_DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _ARTIFACT_NAME_RE = re.compile(r"^pert-weekly-period-lock-[1-9][0-9]*$")
+_REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+MAX_LOCK_BYTES = 64 * 1024
+MAX_SNAPSHOT_BYTES = 256 * 1024
+MAX_MANIFEST_BYTES = 64 * 1024
+MAX_SNAPSHOT_DEPTH = 16
+MAX_SNAPSHOT_OBJECT_KEYS = 64
+MAX_SNAPSHOT_LIST_LENGTH = 256
+MAX_SNAPSHOT_STRING_LENGTH = 4096
+MAX_SOURCE_ARTIFACTS = 64
 _SNAPSHOT_KEYS = frozenset(
     {
         "snapshot_version",
@@ -47,6 +56,7 @@ _MANIFEST_KEYS = frozenset(
     {
         "bundle_version",
         "artifact_name",
+        "repository",
         "source_run_id",
         "source_attempt",
         "workflow_sha",
@@ -83,19 +93,29 @@ def _safe_int(value: object, code: str) -> int:
     return value
 
 
-def _snapshot_tree(value: object) -> object:
+def _snapshot_tree(value: object, depth: int = 0) -> object:
+    if depth > MAX_SNAPSHOT_DEPTH:
+        raise _error("bundle_snapshot_depth_exceeded")
     if isinstance(value, Mapping):
+        if len(value) > MAX_SNAPSHOT_OBJECT_KEYS:
+            raise _error("bundle_snapshot_object_oversized")
         result: dict[str, object] = {}
         for key, item in value.items():
             if type(key) is not str:
                 raise _error("bundle_snapshot_invalid")
             if key in result:
                 raise _error("bundle_snapshot_duplicate_key")
-            result[key] = _snapshot_tree(item)
+            result[key] = _snapshot_tree(item, depth + 1)
         return result
     if type(value) is list:
-        return [_snapshot_tree(item) for item in value]
-    if value is None or type(value) is bool or type(value) is str:
+        if len(value) > MAX_SNAPSHOT_LIST_LENGTH:
+            raise _error("bundle_snapshot_list_oversized")
+        return [_snapshot_tree(item, depth + 1) for item in value]
+    if value is None or type(value) is bool:
+        return value
+    if type(value) is str:
+        if len(value) > MAX_SNAPSHOT_STRING_LENGTH:
+            raise _error("bundle_snapshot_string_oversized")
         return value
     if type(value) is int:
         return _safe_int(value, "bundle_snapshot_invalid")
@@ -127,7 +147,7 @@ def _validate_snapshot(value: object) -> dict[str, object]:
     _string(value["source_snapshot_digest"], re.compile(r"^[0-9a-f]{64}$"), "bundle_snapshot_digest_invalid")
     _string(value["source_provenance"], re.compile(r"^[a-z][a-z0-9_]*$"), "bundle_snapshot_provenance_invalid")
     artifacts = value["source_artifacts"]
-    if type(artifacts) is not list or not artifacts:
+    if type(artifacts) is not list or not artifacts or len(artifacts) > MAX_SOURCE_ARTIFACTS:
         raise _error("bundle_snapshot_artifacts_invalid")
     for item in artifacts:
         if not isinstance(item, dict) or set(item) != _ARTIFACT_KEYS:
@@ -142,7 +162,10 @@ def _validate_snapshot(value: object) -> dict[str, object]:
 def _snapshot_bytes(value: Mapping[str, object]) -> bytes:
     try:
         tree = _snapshot_tree(value)
-        return _canonical_json(_validate_snapshot(tree), "bundle_snapshot_invalid")
+        result = _canonical_json(_validate_snapshot(tree), "bundle_snapshot_invalid")
+        if len(result) > MAX_SNAPSHOT_BYTES:
+            raise _error("bundle_snapshot_oversized")
+        return result
     except WeeklyBundleError:
         raise
     except (TypeError, ValueError, UnicodeError, OverflowError, RecursionError):
@@ -152,6 +175,8 @@ def _snapshot_bytes(value: Mapping[str, object]) -> bytes:
 def _parse_snapshot(raw: bytes) -> dict[str, object]:
     if type(raw) is not bytes:
         raise _error("bundle_snapshot_invalid")
+    if len(raw) > MAX_SNAPSHOT_BYTES:
+        raise _error("bundle_snapshot_oversized")
 
     def pairs(items: list[tuple[str, object]]) -> dict[str, object]:
         result: dict[str, object] = {}
@@ -170,7 +195,7 @@ def _parse_snapshot(raw: bytes) -> dict[str, object]:
         raise
     except (UnicodeError, json.JSONDecodeError, TypeError, ValueError, RecursionError):
         raise _error("bundle_snapshot_invalid") from None
-    validated = _validate_snapshot(value)
+    validated = _validate_snapshot(_snapshot_tree(value))
     if _canonical_json(validated, "bundle_snapshot_invalid") != raw:
         raise _error("bundle_snapshot_noncanonical")
     return validated
@@ -215,6 +240,7 @@ class ArtifactEvidence:
 @dataclass(frozen=True, slots=True)
 class BundleContext:
     run_id: str
+    repository: str
     workflow_sha: str
     producer_sha: str
     artifact: ArtifactEvidence
@@ -222,6 +248,7 @@ class BundleContext:
 
     def __post_init__(self) -> None:
         _string(self.run_id, _RUN_ID_RE, "bundle_run_invalid")
+        _string(self.repository, _REPOSITORY_RE, "bundle_repository_invalid")
         _string(self.workflow_sha, _SHA1_RE, "bundle_workflow_invalid")
         _string(self.producer_sha, _SHA1_RE, "bundle_producer_invalid")
         if type(self.artifact) is not ArtifactEvidence:
@@ -239,10 +266,23 @@ class BundleContext:
 @dataclass(frozen=True, slots=True)
 class RerunContext:
     original: BundleContext
+    current_run_id: str
+    current_repository: str
+    current_workflow_sha: str
     current_run_attempt: int
 
     def __post_init__(self) -> None:
-        if type(self.current_run_attempt) is not int or self.current_run_attempt != 2:
+        if (
+            type(self.original) is not BundleContext
+            or type(self.current_run_attempt) is not int
+            or self.current_run_attempt != 2
+            or type(self.current_run_id) is not str
+            or self.current_run_id != self.original.run_id
+            or type(self.current_repository) is not str
+            or self.current_repository != self.original.repository
+            or type(self.current_workflow_sha) is not str
+            or self.current_workflow_sha != self.original.workflow_sha
+        ):
             raise _error("bundle_rerun_attempt_invalid")
 
 
@@ -275,6 +315,7 @@ def _manifest_bytes(context: BundleContext, lock_bytes: bytes, snapshot_bytes: b
         {
             "bundle_version": BUNDLE_VERSION,
             "artifact_name": context.artifact.name,
+            "repository": context.repository,
             "source_run_id": context.run_id,
             "source_attempt": 1,
             "workflow_sha": context.workflow_sha,
@@ -315,6 +356,16 @@ def verify_period_bundle(bundle: BundleWire, expected: BundleContext) -> BundleW
         raise _error("bundle_input_invalid")
     if bundle.artifact != expected.artifact:
         raise _error("bundle_artifact_mismatch")
+    if type(bundle.lock_bytes) is not bytes or len(bundle.lock_bytes) > MAX_LOCK_BYTES:
+        raise _error("bundle_lock_oversized" if type(bundle.lock_bytes) is bytes else "bundle_lock_invalid")
+    if type(bundle.snapshot_bytes) is not bytes or len(bundle.snapshot_bytes) > MAX_SNAPSHOT_BYTES:
+        raise _error(
+            "bundle_snapshot_oversized" if type(bundle.snapshot_bytes) is bytes else "bundle_snapshot_invalid"
+        )
+    if type(bundle.manifest_bytes) is not bytes or len(bundle.manifest_bytes) > MAX_MANIFEST_BYTES:
+        raise _error(
+            "bundle_manifest_oversized" if type(bundle.manifest_bytes) is bytes else "bundle_manifest_invalid"
+        )
     try:
         parsed_lock = parse_period_lock_bytes(bundle.lock_bytes)
     except PeriodLockError:
@@ -338,6 +389,8 @@ def verify_period_bundle(bundle: BundleWire, expected: BundleContext) -> BundleW
 def _parse_manifest(raw: bytes) -> dict[str, object]:
     if type(raw) is not bytes:
         raise _error("bundle_manifest_invalid")
+    if len(raw) > MAX_MANIFEST_BYTES:
+        raise _error("bundle_manifest_oversized")
 
     def pairs(items: list[tuple[str, object]]) -> dict[str, object]:
         result: dict[str, object] = {}
@@ -361,6 +414,13 @@ def _parse_manifest(raw: bytes) -> dict[str, object]:
 def verify_rerun_context(bundle: BundleWire, rerun: RerunContext) -> BundleWire:
     if type(rerun) is not RerunContext:
         raise _error("bundle_rerun_context_invalid")
+    if (
+        rerun.current_run_id != rerun.original.run_id
+        or rerun.current_repository != rerun.original.repository
+        or rerun.current_workflow_sha != rerun.original.workflow_sha
+        or rerun.current_run_attempt != 2
+    ):
+        raise _error("bundle_rerun_attempt_invalid")
     return verify_period_bundle(bundle, rerun.original)
 
 
