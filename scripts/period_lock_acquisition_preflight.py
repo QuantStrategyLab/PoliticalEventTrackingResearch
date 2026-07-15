@@ -104,6 +104,21 @@ def _fixture_snapshot(lock_payload: dict[str, object]) -> dict[str, object]:
     }
 
 
+def _fixture_manifest(run_id: str, artifact_name: str, lock_bytes: bytes, snapshot_bytes: bytes) -> dict[str, object]:
+    return {
+        "bundle_version": BUNDLE_VERSION,
+        "artifact_name": artifact_name,
+        "source_run_id": run_id,
+        "source_attempt": 1,
+        "lock_version": LOCK_VERSION,
+        "snapshot_version": SNAPSHOT_VERSION,
+        "files": [
+            {"name": "input_snapshot.json", "sha256": _sha256(snapshot_bytes)},
+            {"name": "period_lock.json", "sha256": _sha256(lock_bytes)},
+        ],
+    }
+
+
 def _assert_empty_output_dir(output_dir: Path) -> None:
     if output_dir.is_symlink() or not output_dir.is_dir():
         raise ValueError("period_lock_output_dir_invalid")
@@ -126,18 +141,7 @@ def build_bundle(output_dir: Path, run_id: str, artifact_name: str | None = None
     lock_bytes = serialize_period_lock(lock)
     snapshot = _fixture_snapshot(lock_payload)
     snapshot_bytes = _canonical_json(snapshot, "period_lock_snapshot_invalid")
-    manifest = {
-        "bundle_version": BUNDLE_VERSION,
-        "artifact_name": expected_name,
-        "source_run_id": run_id,
-        "source_attempt": 1,
-        "lock_version": LOCK_VERSION,
-        "snapshot_version": SNAPSHOT_VERSION,
-        "files": [
-            {"name": "input_snapshot.json", "sha256": _sha256(snapshot_bytes)},
-            {"name": "period_lock.json", "sha256": _sha256(lock_bytes)},
-        ],
-    }
+    manifest = _fixture_manifest(run_id, expected_name, lock_bytes, snapshot_bytes)
     manifest_bytes = _canonical_json(manifest, "period_lock_manifest_invalid")
     payloads = {
         "period_lock.json": lock_bytes,
@@ -189,6 +193,12 @@ def verify_bundle(output_dir: Path, expected_run_id: str, expected_artifact: str
     expected_snapshot = _fixture_snapshot(_fixture_lock_payload(expected_run_id))
     if snapshot != expected_snapshot:
         raise ValueError("period_lock_snapshot_mismatch")
+    expected_manifest_bytes = _canonical_json(
+        _fixture_manifest(expected_run_id, expected_artifact, payloads["period_lock.json"], payloads["input_snapshot.json"]),
+        "period_lock_manifest_invalid",
+    )
+    if payloads["bundle_manifest.json"] != expected_manifest_bytes:
+        raise ValueError("period_lock_manifest_mismatch")
     manifest = _parse_canonical_json(payloads["bundle_manifest.json"], "period_lock_manifest_invalid")
     if set(manifest) != {"bundle_version", "artifact_name", "source_run_id", "source_attempt", "lock_version", "snapshot_version", "files"}:
         raise ValueError("period_lock_manifest_invalid")

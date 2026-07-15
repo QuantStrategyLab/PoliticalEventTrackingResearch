@@ -74,11 +74,27 @@ def test_verify_rejects_missing_multiple_or_wrong_attempt(tmp_path: Path) -> Non
         verify_bundle(wrong_attempt_dir, "29399816773", expected_artifact_name("29399816773"))
 
 
+@pytest.mark.parametrize("mutation", ["reorder", "duplicate"])
+def test_verify_rejects_manifest_record_mutation(tmp_path: Path, mutation: str) -> None:
+    build_bundle(tmp_path, "29399816773")
+    manifest_path = tmp_path / "bundle_manifest.json"
+    manifest = json.loads(manifest_path.read_bytes())
+    if mutation == "reorder":
+        manifest["files"] = list(reversed(manifest["files"]))
+    else:
+        manifest["files"].append(manifest["files"][0])
+    manifest_path.write_bytes(json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode())
+    with pytest.raises(ValueError, match="period_lock_manifest_mismatch"):
+        verify_bundle(tmp_path, "29399816773", expected_artifact_name("29399816773"))
+
+
 def test_workflow_isolated_and_minimally_permissioned() -> None:
     workflow = Path(".github/workflows/pert_weekly_period_lock_acquisition.yml").read_text(encoding="utf-8")
     assert "actions: read" in workflow
     assert "contents: read" in workflow
     assert "artifact-metadata: write" in workflow
+    assert "workflow_dispatch:" in workflow
+    assert "pull_request:" not in workflow
     assert "contents: write" not in workflow
     assert "id-token:" not in workflow
     assert "secrets." not in workflow

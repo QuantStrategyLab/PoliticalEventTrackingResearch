@@ -4,6 +4,11 @@ This isolated workflow is a test-only proof of same-run GitHub Actions artifact
 acquisition. It is not the RSS/source production pipeline and does not publish
 producer output.
 
+The workflow is intentionally `workflow_dispatch`-only. A maintainer must
+select the exact PR head for the initial run; this keeps `actions:read` away
+from untrusted `pull_request` code. The one allowed rerun remains the same
+workflow run and therefore retains the original `github.run_id`.
+
 - Attempt 1 builds one deterministic representative `pert.weekly.period_lock.v1`
   lock and one immutable input snapshot. The period and snapshot are fixed
   fixture values; no wall-clock fallback is allowed.
