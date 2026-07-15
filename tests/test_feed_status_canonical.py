@@ -6,6 +6,7 @@ import json
 import pytest
 
 from political_event_tracking_research.feed_status_canonical import (
+    MAX_ROWS_PER_FEED,
     DecisionContractError,
     DecisionKind,
     build_decision,
@@ -96,3 +97,36 @@ def test_tampered_duplicate_and_noncanonical_bytes_fail_closed() -> None:
         read_status(duplicate)
     with pytest.raises(DecisionContractError, match="noncanonical"):
         read_status(result.status_bytes + b"\n")
+
+
+def test_readback_rejects_empty_feed_list_and_wrong_empty_digests() -> None:
+    result = build_decision([outcome("empty", "quarantined", error_code="zero_entries")])
+    payload = json.loads(result.status_bytes)
+    payload["feeds"] = []
+    payload["feed_count"] = 0
+    payload["configured_feed_count"] = 0
+    with pytest.raises(DecisionContractError, match="feed_count|feed_invalid"):
+        read_status(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode())
+
+    payload = json.loads(result.status_bytes)
+    payload["feeds"][0]["row_digest"] = "0" * 64
+    with pytest.raises(DecisionContractError, match="empty_digest"):
+        read_status(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode())
+
+
+def test_readback_rechecks_row_count_bounds_sums_and_rejected_zero() -> None:
+    result = build_decision([outcome("a", "accepted")])
+    payload = json.loads(result.status_bytes)
+    payload["feeds"][0]["accepted_row_count"] = MAX_ROWS_PER_FEED + 1
+    with pytest.raises(DecisionContractError, match="feed_counter"):
+        read_status(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode())
+
+    payload = json.loads(result.status_bytes)
+    payload["accepted_row_count"] = 0
+    with pytest.raises(DecisionContractError, match="counter"):
+        read_status(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode())
+
+    payload = json.loads(result.status_bytes)
+    payload["feeds"][0]["rejected_row_count"] = 1
+    with pytest.raises(DecisionContractError, match="rejected"):
+        read_status(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode())

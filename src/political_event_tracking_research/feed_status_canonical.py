@@ -15,6 +15,7 @@ _ROW_KEYS = ("item_id", "published_at", "source_type", "source_url", "author", "
 _OUTCOME_KEYS = frozenset({"feed_id", "feed_url", "kind", "state", "rows", "error_code"})
 _ERROR_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
+_EMPTY_DIGEST = hashlib.sha256(b"[]").hexdigest()
 _WIRE_KEYS = frozenset(
     {
         "status_version",
@@ -244,7 +245,7 @@ def _validate_wire(value: object) -> dict[str, object]:
     if not _DIGEST_RE.fullmatch(aggregate):
         _fail("status_digest_invalid")
     feeds = data["feeds"]
-    if not isinstance(feeds, list):
+    if not isinstance(feeds, list) or not feeds:
         _fail("feed_invalid")
     previous: tuple[str, str] | None = None
     feed_ids: set[str] = set()
@@ -268,7 +269,11 @@ def _validate_wire(value: object) -> dict[str, object]:
         if state in {"accepted", "quarantined"} and kind not in {"rss2", "atom"}:
             _fail("feed_kind_invalid")
         accepted_count = _integer(item["accepted_row_count"], "feed_counter_invalid")
-        _integer(item["rejected_row_count"], "feed_counter_invalid")
+        rejected_count = _integer(item["rejected_row_count"], "feed_counter_invalid")
+        if accepted_count > MAX_ROWS_PER_FEED:
+            _fail("feed_counter_invalid")
+        if rejected_count != 0:
+            _fail("rejected_count_invalid")
         if state == "accepted" and accepted_count == 0:
             _fail("feed_state_invalid")
         if state != "accepted" and accepted_count != 0:
@@ -276,6 +281,8 @@ def _validate_wire(value: object) -> dict[str, object]:
         digest = _string(item["row_digest"], "status_digest_invalid")
         if not _DIGEST_RE.fullmatch(digest):
             _fail("status_digest_invalid")
+        if state != "accepted" and digest != _EMPTY_DIGEST:
+            _fail("empty_digest_invalid")
         error = item["error_code"]
         if state == "accepted" and error is not None:
             _fail("feed_state_invalid")
@@ -287,10 +294,18 @@ def _validate_wire(value: object) -> dict[str, object]:
     failed = sum(item["state"] == "failed" for item in feeds)
     quarantined = sum(item["state"] == "quarantined" for item in feeds)
     accepted_rows = sum(item["accepted_row_count"] for item in feeds)
+    rejected_rows = sum(item["rejected_row_count"] for item in feeds)
     if data["successful_feed_count"] != accepted or data["failed_feed_count"] != failed:
         _fail("status_counter_invalid")
-    if data["quarantined_feed_count"] != quarantined or data["accepted_row_count"] != accepted_rows:
+    if (
+        data["quarantined_feed_count"] != quarantined
+        or data["accepted_row_count"] != accepted_rows
+        or rejected_rows != 0
+        or data["rejected_row_count"] != 0
+    ):
         _fail("status_counter_invalid")
+    if accepted_rows == 0 and data["aggregate_row_digest"] != _EMPTY_DIGEST:
+        _fail("empty_digest_invalid")
     complete = failed == 0 and quarantined == 0
     if data["publication_complete"] != complete or data["eligible_for_live_publication"] != complete:
         _fail("status_flag_invalid")
