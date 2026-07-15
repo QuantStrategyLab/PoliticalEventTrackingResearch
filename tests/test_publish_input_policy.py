@@ -13,7 +13,9 @@ from political_event_tracking_research.publish_input_policy import (
     build_publication_evidence,
     read_input_policy_evidence,
     read_publication_evidence,
+    recompute_source_items_binding,
 )
+from political_event_tracking_research.feed_status_canonical_h2c import build_decision
 
 
 def write_inputs(root: Path) -> None:
@@ -171,6 +173,62 @@ def test_debug_evidence_can_readback_without_becoming_publishable(tmp_path: Path
     assert evidence["status_eligible_for_live_publication"] is True
 
 
+def test_source_items_binding_recomputes_count_digest_and_publishability() -> None:
+    row = {
+        "item_id": "a-1",
+        "published_at": "2026-05-01T12:30:00Z",
+        "source_type": "official",
+        "source_url": "https://example.test/a",
+        "author": "",
+        "text": "event",
+    }
+    status = build_decision(
+        [
+            {
+                "feed_id": "feed-a",
+                "feed_url": "https://example.test/feed-a",
+                "kind": "rss2",
+                "state": "accepted",
+                "rows": [row],
+                "error_code": None,
+            }
+        ]
+    )
+    source = (
+        "item_id,published_at,source_type,source_url,author,text\n"
+        "a-1,2026-05-01T12:30:00Z,official,https://example.test/a,,event\n"
+    ).encode()
+    count, digest, eligible = recompute_source_items_binding(source, status.status_bytes)
+    assert (count, digest, eligible) == (1, json.loads(status.status_bytes)["aggregate_row_digest"], True)
+
+
+def test_source_items_binding_rejects_count_or_digest_drift() -> None:
+    status = build_decision(
+        [
+            {
+                "feed_id": "feed-a",
+                "feed_url": "https://example.test/feed-a",
+                "kind": "rss2",
+                "state": "accepted",
+                "rows": [
+                    {
+                        "item_id": "a-1",
+                        "published_at": "2026-05-01T12:30:00Z",
+                        "source_type": "official",
+                        "source_url": "https://example.test/a",
+                        "author": "",
+                        "text": "event",
+                    }
+                ],
+                "error_code": None,
+            }
+        ]
+    )
+    tampered = b"item_id,published_at,source_type,source_url,author,text\na-1,2026-05-01T12:30:00Z,official,https://example.test/a,,changed\n"
+    with pytest.raises(PublishInputPolicyError, match="source_items_status_mismatch"):
+        recompute_source_items_binding(tampered, status.status_bytes)
+
+
 def test_workflow_guard_and_evidence_precede_fetch_and_publish() -> None:
     workflow = Path(__file__).parents[1].joinpath(".github/workflows/rss_source_pipeline.yml").read_text(
         encoding="utf-8"
@@ -182,4 +240,5 @@ def test_workflow_guard_and_evidence_precede_fetch_and_publish() -> None:
     assert workflow.index("Upload RSS source artifact") < workflow.index("Build and validate publication evidence")
     assert workflow.index("Build and validate publication evidence") < workflow.index("Publish live CSV outputs")
     assert '--max-items-per-feed "${MAX_ITEMS_PER_FEED}"' in workflow
+    assert workflow.count("ref: ${{ github.sha }}") == 2
     assert "git push origin HEAD:refs/heads/main" in workflow

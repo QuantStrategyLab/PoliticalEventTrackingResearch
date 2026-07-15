@@ -2,15 +2,14 @@
 from __future__ import annotations
 
 import argparse
-import csv
 from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from political_event_tracking_research.feed_status_canonical_h2c import read_status  # noqa: E402
 from political_event_tracking_research.publish_input_policy import (  # noqa: E402
     build_publication_evidence,
+    recompute_source_items_binding,
     read_input_policy_evidence,
     read_publication_evidence,
     serialize_publication_evidence,
@@ -29,17 +28,15 @@ def main() -> None:
         policy = read_input_policy_evidence(args.policy.read_bytes())
         source_bytes = args.source_items.read_bytes()
         status_bytes = args.status.read_bytes()
-        status = read_status(status_bytes)
-        with args.source_items.open(newline="", encoding="utf-8") as handle:
-            row_count = sum(1 for _ in csv.DictReader(handle))
+        row_count, aggregate_digest, status_eligible = recompute_source_items_binding(source_bytes, status_bytes)
         evidence = build_publication_evidence(
             policy,
             root=args.root,
             source_items_bytes=source_bytes,
             status_bytes=status_bytes,
-            status_eligible=status["eligible_for_live_publication"],
+            status_eligible=status_eligible,
             source_items_row_count=row_count,
-            aggregate_row_digest=status["aggregate_row_digest"],
+            aggregate_row_digest=aggregate_digest,
         )
         if read_publication_evidence(evidence) != evidence:
             raise ValueError("publication_evidence_readback_invalid")

@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
 import json
 import re
 import stat
 from collections.abc import Mapping
 from pathlib import Path
+
+from .feed_status_canonical_h2c import EMPTY_DIGEST, digest_rows, read_status
 
 
 PUBLISH_MAX_ITEMS_PER_FEED = 50
@@ -19,6 +23,7 @@ REPOSITORY = "QuantStrategyLab/PoliticalEventTrackingResearch"
 WORKFLOW_PATH = ".github/workflows/rss_source_pipeline.yml"
 WORKFLOW_REF = f"{REPOSITORY}/{WORKFLOW_PATH}@refs/heads/main"
 POLICY_VERSION = "pert.rss_publish_input.v1"
+SOURCE_ITEM_FIELDS = ("item_id", "published_at", "source_type", "source_url", "author", "text")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 _POLICY_KEYS = frozenset(
@@ -56,6 +61,40 @@ class PublishInputPolicyError(ValueError):
 
 def _fail(code: str) -> None:
     raise PublishInputPolicyError(code)
+
+
+def recompute_source_items_binding(source_items_bytes: bytes, status_bytes: bytes) -> tuple[int, str, bool]:
+    if type(source_items_bytes) is not bytes or type(status_bytes) is not bytes:
+        _fail("publication_evidence_invalid")
+    try:
+        reader = csv.DictReader(io.StringIO(source_items_bytes.decode("utf-8"), newline=""))
+        if tuple(reader.fieldnames or ()) != SOURCE_ITEM_FIELDS:
+            _fail("source_items_schema_invalid")
+        rows: list[dict[str, str]] = []
+        for row in reader:
+            if set(row) != set(SOURCE_ITEM_FIELDS) or any(type(value) is not str for value in row.values()):
+                _fail("source_items_schema_invalid")
+            rows.append({key: row[key] for key in SOURCE_ITEM_FIELDS})
+        canonical = io.StringIO(newline="")
+        writer = csv.DictWriter(canonical, fieldnames=SOURCE_ITEM_FIELDS, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+        if canonical.getvalue().encode("utf-8") != source_items_bytes:
+            _fail("source_items_noncanonical")
+        status = read_status(status_bytes)
+    except (csv.Error, UnicodeError, ValueError):
+        _fail("source_items_invalid")
+    row_count = len(rows)
+    aggregate_digest = digest_rows(rows) if rows else EMPTY_DIGEST
+    derived_eligible = status["failed_feed_count"] == 0 and status["quarantined_feed_count"] == 0
+    if (
+        row_count != status["accepted_row_count"]
+        or aggregate_digest != status["aggregate_row_digest"]
+        or status["publication_complete"] is not derived_eligible
+        or status["eligible_for_live_publication"] is not derived_eligible
+    ):
+        _fail("source_items_status_mismatch")
+    return row_count, aggregate_digest, derived_eligible
 
 
 def _mapping(value: object, keys: frozenset[str], code: str) -> dict[str, object]:

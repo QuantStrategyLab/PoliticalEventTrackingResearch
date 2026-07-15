@@ -102,6 +102,11 @@ def _digest(rows: list[dict[str, str]]) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def digest_rows(rows: list[dict[str, str]]) -> str:
+    """Return the H2C aggregate digest for an already validated row snapshot."""
+    return _digest(rows)
+
+
 def _parse_outcome(value: object) -> tuple[dict[str, object], list[dict[str, str]]]:
     data = _mapping(value, _OUTCOME_KEYS, "outcome_invalid")
     kind = data["kind"]
