@@ -42,42 +42,24 @@ def _error(code: str) -> TrustedWorkflowIdentityError:
     return TrustedWorkflowIdentityError(code)
 
 
+@dataclass(frozen=True, slots=True, init=False)
 class TrustedWorkflowIdentity:
-    """Immutable fixed identity; construction is intentionally not public."""
+    """Immutable fixed identity; construction has no override parameters."""
 
-    __slots__ = ("_repository", "_workflow_path", "_workflow_ref")
+    repository: str
+    workflow_path: str
+    workflow_ref: str
 
-    def __new__(cls, *_: object) -> TrustedWorkflowIdentity:
-        raise TypeError("use trusted_workflow_identity()")
-
-    @classmethod
-    def _create(cls) -> TrustedWorkflowIdentity:
-        instance = object.__new__(cls)
-        object.__setattr__(instance, "_repository", TRUSTED_REPOSITORY)
-        object.__setattr__(instance, "_workflow_path", TRUSTED_WORKFLOW_PATH)
-        object.__setattr__(instance, "_workflow_ref", TRUSTED_WORKFLOW_REF)
-        return instance
-
-    @property
-    def repository(self) -> str:
-        return self._repository
-
-    @property
-    def workflow_path(self) -> str:
-        return self._workflow_path
-
-    @property
-    def workflow_ref(self) -> str:
-        return self._workflow_ref
-
-
-_TRUSTED_IDENTITY = TrustedWorkflowIdentity._create()
+    def __init__(self) -> None:
+        object.__setattr__(self, "repository", TRUSTED_REPOSITORY)
+        object.__setattr__(self, "workflow_path", TRUSTED_WORKFLOW_PATH)
+        object.__setattr__(self, "workflow_ref", TRUSTED_WORKFLOW_REF)
 
 
 def trusted_workflow_identity() -> TrustedWorkflowIdentity:
     """Return the only supported repository/workflow identity."""
 
-    return _TRUSTED_IDENTITY
+    return TrustedWorkflowIdentity()
 
 
 def _reviewed_sha(value: object) -> str:
@@ -94,7 +76,12 @@ class TrustedWorkflowEvidence:
     reviewed_workflow_sha: str
 
     def __post_init__(self) -> None:
-        if type(self.identity) is not TrustedWorkflowIdentity or self.identity is not _TRUSTED_IDENTITY:
+        if (
+            type(self.identity) is not TrustedWorkflowIdentity
+            or self.identity.repository != TRUSTED_REPOSITORY
+            or self.identity.workflow_path != TRUSTED_WORKFLOW_PATH
+            or self.identity.workflow_ref != TRUSTED_WORKFLOW_REF
+        ):
             raise _error("trusted_workflow_identity_mismatch")
         _reviewed_sha(self.reviewed_workflow_sha)
 
@@ -106,7 +93,7 @@ def validate_trusted_workflow_identity(
 
     if type(workflow_ref) is not str or workflow_ref != TRUSTED_WORKFLOW_REF:
         raise _error("trusted_workflow_identity_mismatch")
-    return TrustedWorkflowEvidence(_TRUSTED_IDENTITY, _reviewed_sha(reviewed_workflow_sha))
+    return TrustedWorkflowEvidence(TrustedWorkflowIdentity(), _reviewed_sha(reviewed_workflow_sha))
 
 
 def _canonical_bytes(value: dict[str, object]) -> bytes:
@@ -119,8 +106,14 @@ def _canonical_bytes(value: dict[str, object]) -> bytes:
 
 
 def serialize_trusted_workflow_evidence(evidence: TrustedWorkflowEvidence) -> bytes:
-    if type(evidence) is not TrustedWorkflowEvidence or evidence.identity is not _TRUSTED_IDENTITY:
+    if type(evidence) is not TrustedWorkflowEvidence:
         raise _error("trusted_workflow_evidence_invalid")
+    if (
+        evidence.identity.repository != TRUSTED_REPOSITORY
+        or evidence.identity.workflow_path != TRUSTED_WORKFLOW_PATH
+        or evidence.identity.workflow_ref != TRUSTED_WORKFLOW_REF
+    ):
+        raise _error("trusted_workflow_identity_mismatch")
     return _canonical_bytes(
         {
             "identity_version": IDENTITY_VERSION,
@@ -160,8 +153,11 @@ def parse_trusted_workflow_evidence(raw: bytes) -> TrustedWorkflowEvidence:
             result[key] = item
         return result
 
+    def reject_constant(_: str) -> None:
+        raise _error("trusted_workflow_wire_invalid")
+
     try:
-        value = json.loads(raw.decode("ascii"), object_pairs_hook=pairs, parse_constant=lambda _: (_ for _ in ()).throw(_error("trusted_workflow_wire_invalid")))
+        value = json.loads(raw.decode("ascii"), object_pairs_hook=pairs, parse_constant=reject_constant)
     except TrustedWorkflowIdentityError:
         raise
     except (UnicodeError, json.JSONDecodeError, TypeError, ValueError, RecursionError):

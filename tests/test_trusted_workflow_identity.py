@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import FrozenInstanceError, replace
 
 import pytest
 
@@ -11,6 +12,7 @@ from political_event_tracking_research.trusted_workflow_identity import (
     TRUSTED_WORKFLOW_PATH,
     TRUSTED_WORKFLOW_REF,
     TrustedWorkflowIdentityError,
+    TrustedWorkflowEvidence,
     parse_trusted_workflow_evidence,
     serialize_trusted_workflow_evidence,
     trusted_workflow_identity,
@@ -38,6 +40,23 @@ def test_fixed_identity_has_no_runtime_override() -> None:
     assert identity.workflow_ref == TRUSTED_WORKFLOW_REF
     with pytest.raises(TypeError):
         module.TrustedWorkflowIdentity(TRUSTED_REPOSITORY, "other.yml", TRUSTED_WORKFLOW_REF)  # type: ignore[call-arg]
+    with pytest.raises(FrozenInstanceError):
+        identity.repository = "QuantStrategyLab/Other"  # type: ignore[misc]
+    assert trusted_workflow_identity().repository == TRUSTED_REPOSITORY
+
+
+def test_evidence_constructor_and_replace_revalidate_invariants() -> None:
+    evidence = validate_trusted_workflow_identity(TRUSTED_WORKFLOW_REF, SHA)
+    assert replace(evidence, reviewed_workflow_sha="b" * 40).reviewed_workflow_sha == "b" * 40
+    with pytest.raises(TrustedWorkflowIdentityError, match="reviewed_workflow_sha_invalid"):
+        replace(evidence, reviewed_workflow_sha="not-a-sha")
+
+    forged_identity = object.__new__(module.TrustedWorkflowIdentity)
+    object.__setattr__(forged_identity, "repository", "QuantStrategyLab/Other")
+    object.__setattr__(forged_identity, "workflow_path", TRUSTED_WORKFLOW_PATH)
+    object.__setattr__(forged_identity, "workflow_ref", TRUSTED_WORKFLOW_REF)
+    with pytest.raises(TrustedWorkflowIdentityError, match="trusted_workflow_identity_mismatch"):
+        TrustedWorkflowEvidence(forged_identity, SHA)
 
 
 def test_runtime_sha_and_fixed_workflow_identity_round_trip() -> None:
