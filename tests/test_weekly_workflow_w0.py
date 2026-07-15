@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from political_event_tracking_research.rss_source_fetch import FetchStatusError, validate_fetch_status
-from political_event_tracking_research.workflow_boundary import PathBoundaryError, validate_source_paths
+from political_event_tracking_research.workflow_boundary import PathBoundaryError, validate_source_paths, validate_workflow_options
 
 
 def status(**overrides: object) -> dict[str, object]:
@@ -30,6 +30,8 @@ def test_fetch_status_validation_returns_complete_state() -> None:
         {"feed_id": "a", "feed_url": "https://a.example/feed", "ok": True, "item_count": 1, "error": ""},
         {"feed_id": "b", "feed_url": "https://b.example/feed", "ok": False, "item_count": 0, "error": "blocked"},
     ])) is False
+    with pytest.raises(FetchStatusError):
+        validate_fetch_status(status(), fetch_exit=7)
 
 
 @pytest.mark.parametrize("change", [{"complete": False}, {"failed_feed_count": 1}, {"unknown": 1}, {"feeds": []}])
@@ -44,6 +46,13 @@ def test_manual_source_paths_are_canonical_only(value: str) -> None:
         validate_source_paths(value, "config/core_us_equity_aliases.csv", "data/live/political_watchlist.csv")
 
 
+def test_production_commit_rejects_fetch_override_before_fetch() -> None:
+    validate_workflow_options("false", "7")
+    validate_workflow_options("true", "50")
+    with pytest.raises(PathBoundaryError):
+        validate_workflow_options("true", "7")
+
+
 def test_workflow_orders_debug_upload_gate_and_live_push() -> None:
     workflow = Path(__file__).parents[1].joinpath(".github/workflows/rss_source_pipeline.yml").read_text(encoding="utf-8")
     assert workflow.index("Validate canonical workflow inputs") < workflow.index("actions/checkout@")
@@ -51,4 +60,7 @@ def test_workflow_orders_debug_upload_gate_and_live_push() -> None:
     assert workflow.index("Validate feed completeness") < workflow.index("Publish live CSV outputs")
     assert "git push origin HEAD:refs/heads/main" in workflow
     assert "git rev-parse HEAD" in workflow
+    assert "fetch_exit" in workflow
+    assert "--fetch-exit" in workflow
+    assert "COMMIT_OUTPUTS" in workflow
     assert "weekly" not in workflow.lower()

@@ -53,6 +53,8 @@ jobs:
           FEEDS_PATH: ${{ github.event.inputs.feeds_path || 'config/free_rss_feeds.csv' }}
           ALIASES_PATH: ${{ github.event.inputs.aliases_path || 'config/core_us_equity_aliases.csv' }}
           WATCHLIST_PATH: ${{ github.event.inputs.watchlist_path || 'data/live/political_watchlist.csv' }}
+          COMMIT_OUTPUTS: ${{ github.event.inputs.commit_outputs || 'false' }}
+          MAX_ITEMS_PER_FEED: ${{ github.event.inputs.max_items_per_feed || '50' }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -65,6 +67,10 @@ jobs:
           actual = tuple(os.environ[key] for key in ("FEEDS_PATH", "ALIASES_PATH", "WATCHLIST_PATH"))
           if actual != expected:
               raise SystemExit("workflow_input_path_invalid")
+          if os.environ["COMMIT_OUTPUTS"] not in {"false", "true"}:
+              raise SystemExit("workflow_option_invalid")
+          if os.environ["COMMIT_OUTPUTS"] == "true" and os.environ["MAX_ITEMS_PER_FEED"] != "50":
+              raise SystemExit("production_fetch_override_invalid")
           PY
 
   build-rss-source-events:
@@ -110,6 +116,7 @@ jobs:
               --events data/output/rss_source_pipeline/source_events.csv \
               --output data/output/rss_source_pipeline/source_tracker.csv
           fi
+          printf '%s\n' "${fetch_exit}" > data/output/rss_source_pipeline/fetch_exit.txt
           printf 'fetch_exit=%s\n' "${fetch_exit}"
       - name: Upload RSS source artifact
         uses: actions/upload-artifact@v7
@@ -118,7 +125,7 @@ jobs:
           path: data/output/rss_source_pipeline/
           if-no-files-found: error
       - name: Validate feed completeness
-        run: python scripts/validate_fetch_status.py --status data/output/rss_source_pipeline/source_fetch_status.json
+        run: python scripts/validate_fetch_status.py --status data/output/rss_source_pipeline/source_fetch_status.json --fetch-exit data/output/rss_source_pipeline/fetch_exit.txt
       - name: Publish live CSV outputs to repository
         env:
           COMMIT_OUTPUTS: ${{ github.event_name == 'schedule' && 'true' || github.event.inputs.commit_outputs || 'false' }}

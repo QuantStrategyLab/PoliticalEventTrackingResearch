@@ -15,9 +15,11 @@ from political_event_tracking_research.rss_source_fetch import FetchStatusError,
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--status", required=True, type=Path)
+    parser.add_argument("--fetch-exit", required=True, type=Path)
     args = parser.parse_args()
     try:
-        complete = validate_fetch_status(json.loads(args.status.read_text(encoding="utf-8")))
+        fetch_exit = int(args.fetch_exit.read_text(encoding="utf-8").strip())
+        complete = validate_fetch_status(json.loads(args.status.read_text(encoding="utf-8")), fetch_exit=fetch_exit)
     except (FetchStatusError, OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError):
         raise SystemExit("fetch_status_invalid") from None
     if not complete:

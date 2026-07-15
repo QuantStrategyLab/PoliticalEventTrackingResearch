@@ -54,7 +54,11 @@ class FetchStatusError(ValueError):
         super().__init__(code)
 
 
-def validate_fetch_status(payload: object) -> bool:
+def validate_fetch_status(payload: object, *, fetch_exit: int = 0) -> bool:
+    if type(fetch_exit) is not int or fetch_exit < 0:
+        raise FetchStatusError("fetch_exit_invalid")
+    if fetch_exit != 0:
+        raise FetchStatusError("fetch_failed")
     required = {"generated_at", "feed_count", "successful_feed_count", "failed_feed_count", "item_count", "feeds"}
     entry_keys = {"feed_id", "feed_url", "ok", "item_count", "error"}
     if not isinstance(payload, dict) or set(payload) != required or not isinstance(payload["feeds"], list):
