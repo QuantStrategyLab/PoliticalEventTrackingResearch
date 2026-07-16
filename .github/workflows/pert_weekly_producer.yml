@@ -56,6 +56,7 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
           PRODUCER_SHA: ${{ github.sha }}
+          RUN_MODE: ${{ github.event_name == 'workflow_dispatch' && 'manual' || 'scheduled' }}
         run: |
           set -euo pipefail
           mkdir -p data/output/pert_weekly
@@ -68,6 +69,7 @@ jobs:
             --source-run-id "${RUN_ID}"
             --source-attempt "${RUN_ATTEMPT}"
             --producer-ref "${PRODUCER_SHA}"
+            --run-mode "${RUN_MODE}"
           )
           if [ -n "${PERIOD_START}" ] || [ -n "${AS_OF}" ]; then
             ARGS+=(--period-start "${PERIOD_START}" --as-of "${AS_OF}")

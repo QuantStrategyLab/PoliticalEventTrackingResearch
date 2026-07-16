@@ -18,6 +18,12 @@ Saturday RSS/live workflow is unchanged.
   canonical H2C status, period-filtered event CSV, period lock, and manifest.
   Any failed, stale, missing, or quarantined feed prevents a successful weekly
   artifact. A recognized zero-entry feed remains quarantine/non-eligible.
+- A non-empty feed whose newest parsed item is older than the locked
+  `period_start` is classified as `feed_stale` and fails the producer before a
+  successful artifact is emitted. H2C keeps its closed state vocabulary: this
+  producer maps stale to a failed outcome, so no stale feed can enter a
+  successful manifest and the successful manifest's `stale_feed_count` remains
+  the validated value `0`.
 - A successful artifact contains exactly these five files:
   `period_lock.json`, `political_events.csv`, `political_watchlist.csv`,
   `political_event_weekly.json`, and `weekly_manifest.json`.

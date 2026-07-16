@@ -62,6 +62,7 @@ def test_run_attempt_two_fails_before_fetch(tmp_path: Path, monkeypatch: pytest.
             source_run_id="123",
             source_attempt=2,
             producer_ref="a" * 40,
+            run_mode="scheduled",
         )
 
 
@@ -79,6 +80,7 @@ def test_successful_snapshot_emits_exact_five_files_and_readback(
         source_run_id="123",
         source_attempt=1,
         producer_ref="a" * 40,
+        run_mode="scheduled",
     )
     assert {path.name for path in output.iterdir()} == set(producer.ARTIFACT_FILES)
     assert producer.parse_period_lock_bytes((output / "period_lock.json").read_bytes()).source_run_id == "123"
@@ -105,8 +107,48 @@ def test_zero_entry_feed_cannot_emit_success_artifact(tmp_path: Path, monkeypatc
             source_run_id="123",
             source_attempt=1,
             producer_ref="a" * 40,
+            run_mode="scheduled",
         )
     assert not (tmp_path / "artifact").exists()
+
+
+def test_stale_feed_is_failed_and_does_not_emit_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    feeds, aliases, watchlist = write_inputs(tmp_path)
+    old_rss = RSS.replace(b"12 Jul 2026", b"28 Jun 2026")
+    monkeypatch.setattr(producer, "fetch_url", lambda _url: old_rss)
+    with pytest.raises(producer.WeeklyArtifactError, match="weekly_source_incomplete"):
+        producer.build_weekly_artifact(
+            feeds_path=feeds,
+            aliases_path=aliases,
+            watchlist_path=watchlist,
+            output_dir=tmp_path / "artifact",
+            reference_time=REFERENCE,
+            source_run_id="123",
+            source_attempt=1,
+            producer_ref="a" * 40,
+            run_mode="scheduled",
+        )
+    assert not (tmp_path / "artifact").exists()
+
+
+def test_period_override_does_not_derive_run_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    feeds, aliases, watchlist = write_inputs(tmp_path)
+    monkeypatch.setattr(producer, "fetch_url", lambda _url: RSS)
+    output = producer.build_weekly_artifact(
+        feeds_path=feeds,
+        aliases_path=aliases,
+        watchlist_path=watchlist,
+        output_dir=tmp_path / "artifact",
+        reference_time=REFERENCE,
+        source_run_id="123",
+        source_attempt=1,
+        producer_ref="a" * 40,
+        run_mode="scheduled",
+        period_start="2026-07-06",
+        as_of="2026-07-12",
+    )
+    manifest = producer.parse_weekly_manifest_bytes((output / "weekly_manifest.json").read_bytes())
+    assert manifest.run_mode == "scheduled"
 
 
 def test_weekly_workflow_isolated_and_retained() -> None:

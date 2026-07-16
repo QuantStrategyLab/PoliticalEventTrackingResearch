@@ -147,11 +147,14 @@ def _write_source_items(path: Path, rows: list[dict[str, str]]) -> None:
     write_csv_rows(path, SOURCE_ITEM_FIELDS, rows)
 
 
-def _fetch_snapshot(feeds: list[FeedConfig]) -> tuple[list[dict[str, str]], list[dict[str, object]]]:
+def _fetch_snapshot(
+    feeds: list[FeedConfig], period_start: dt.date
+) -> tuple[list[dict[str, str]], list[dict[str, object]], int]:
     if not feeds:
         _fail("feed_config_empty")
     all_rows: list[dict[str, str]] = []
     outcomes: list[dict[str, object]] = []
+    stale_count = 0
     for feed in feeds:
         try:
             kind, rows = parse_feed_snapshot(
@@ -170,6 +173,21 @@ def _fetch_snapshot(feeds: list[FeedConfig]) -> tuple[list[dict[str, str]], list
             )
             continue
         all_rows.extend(rows)
+        if rows:
+            latest_date = max(dt.date.fromisoformat(row["published_at"][:10]) for row in rows)
+            if latest_date < period_start:
+                stale_count += 1
+                outcomes.append(
+                    {
+                        "feed_id": feed.feed_id,
+                        "feed_url": feed.feed_url,
+                        "kind": kind,
+                        "state": "failed",
+                        "rows": [],
+                        "error_code": "feed_stale",
+                    }
+                )
+                continue
         outcomes.append(
             {
                 "feed_id": feed.feed_id,
@@ -180,7 +198,7 @@ def _fetch_snapshot(feeds: list[FeedConfig]) -> tuple[list[dict[str, str]], list
                 "error_code": None if rows else "zero_entries",
             }
         )
-    return all_rows, outcomes
+    return all_rows, outcomes, stale_count
 
 
 def _source_snapshot_digest(artifacts: list[dict[str, object]]) -> str:
@@ -233,16 +251,19 @@ def build_weekly_artifact(
     source_run_id: str,
     source_attempt: int,
     producer_ref: str,
+    run_mode: str,
     period_start: str | None = None,
     as_of: str | None = None,
 ) -> Path:
     period_start_date, period_end_date, as_of_date = validate_requested_period(reference_time, period_start, as_of)
     if type(source_attempt) is not int or source_attempt != 1:
         _fail("run_attempt_invalid")
-    rows, outcomes = _fetch_snapshot(load_feed_config(feeds_path))
+    if type(run_mode) is not str or run_mode not in {"scheduled", "manual"}:
+        _fail("run_mode_invalid")
+    rows, outcomes, stale_count = _fetch_snapshot(load_feed_config(feeds_path), period_start_date)
     decision = build_decision(outcomes)
     status = read_status(decision.status_bytes)
-    if decision.decision.kind.value != "success":
+    if stale_count or decision.decision.kind.value != "success":
         _fail("weekly_source_incomplete")
     output_dir.mkdir(parents=True, exist_ok=False)
     internal = output_dir / ".source_items.csv"
@@ -287,7 +308,7 @@ def build_weekly_artifact(
             period_start_date,
             period_end_date,
             _parse_reference(reference_time),
-            "manual" if period_start is not None else "scheduled",
+            run_mode,
             producer_ref,
             SOURCE_PROVENANCE,
             tuple(WeeklySourceArtifact(item["path"], item["sha256"], item["row_count"]) for item in manifest_artifacts),
@@ -326,6 +347,7 @@ def main() -> None:
     parser.add_argument("--source-run-id", required=True)
     parser.add_argument("--source-attempt", type=int, required=True)
     parser.add_argument("--producer-ref", required=True)
+    parser.add_argument("--run-mode", required=True, choices=("scheduled", "manual"))
     parser.add_argument("--period-start")
     parser.add_argument("--as-of")
     args = parser.parse_args()
@@ -339,6 +361,7 @@ def main() -> None:
             source_run_id=args.source_run_id,
             source_attempt=args.source_attempt,
             producer_ref=args.producer_ref,
+            run_mode=args.run_mode,
             period_start=args.period_start,
             as_of=args.as_of,
         )
