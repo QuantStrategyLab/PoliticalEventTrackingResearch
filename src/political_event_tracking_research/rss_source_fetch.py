@@ -7,6 +7,7 @@ import hashlib
 import html
 import json
 import re
+import urllib.error
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -92,19 +93,35 @@ def fetch_url_with_metadata(url: str) -> tuple[bytes, dict[str, str]]:
             "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
         },
     )
-    with urllib.request.urlopen(request, timeout=20) as response:
-        payload = response.read(MAX_XML_BYTES + 1)
-        response_headers = getattr(response, "headers", None)
-        headers: dict[str, str] = {}
-        if response_headers is not None:
-            for name in ("Date", "Last-Modified"):
-                get_all = getattr(response_headers, "get_all", None)
-                values = get_all(name) if callable(get_all) else None
-                if values is not None and len(values) > 1:
-                    raise FeedXmlError("feed_header_duplicate")
-                value = response_headers.get(name)
-                if value is not None:
-                    headers[name] = value
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            payload = response.read(MAX_XML_BYTES + 1)
+            if type(payload) is not bytes:
+                raise TypeError
+            response_headers = getattr(response, "headers", None)
+            headers: dict[str, str] = {}
+            if response_headers is not None:
+                for name in ("Date", "Last-Modified"):
+                    get_all = getattr(response_headers, "get_all", None)
+                    values = get_all(name) if callable(get_all) else None
+                    if values is not None and len(values) > 1:
+                        raise FeedXmlError("feed_header_duplicate")
+                    value = response_headers.get(name)
+                    if value is not None:
+                        headers[name] = value
+                content_length = response_headers.get("Content-Length")
+                if content_length is not None:
+                    if not content_length.isascii() or not content_length.isdecimal():
+                        raise ValueError
+                    expected_length = int(content_length)
+                    if expected_length > MAX_XML_BYTES:
+                        raise FeedXmlError("feed_xml_oversize")
+                    if expected_length != len(payload):
+                        raise ValueError
+    except FeedXmlError:
+        raise
+    except (OSError, TimeoutError, TypeError, ValueError, urllib.error.URLError):
+        raise FeedXmlError("feed_fetch_failed") from None
     if len(payload) > MAX_XML_BYTES:
         raise FeedXmlError("feed_xml_oversize")
     return payload, headers

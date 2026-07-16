@@ -121,11 +121,14 @@ def _source_digest(source_url: object) -> str:
     value = _string(source_url, "source_identity_invalid")
     try:
         parsed = urlsplit(value)
-        if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password or parsed.fragment:
             _fail("source_identity_invalid")
+        encoded = value.encode()
     except ValueError:
         _fail("source_identity_invalid")
-    return hashlib.sha256(value.encode()).hexdigest()
+    except UnicodeError:
+        _fail("source_identity_invalid")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def _xml_values(body: bytes) -> tuple[str | None, str | None]:

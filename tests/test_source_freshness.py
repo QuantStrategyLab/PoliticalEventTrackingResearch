@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import urllib.error
 
 import pytest
 
@@ -84,6 +85,46 @@ def test_opt_in_metadata_fetch_rejects_duplicate_headers() -> None:
         rss_source_fetch.urllib.request.urlopen = original
 
 
+@pytest.mark.parametrize("failure", [TimeoutError("timeout"), OSError("network"), urllib.error.URLError("http")])
+def test_metadata_fetch_translates_expected_transport_failures(failure: BaseException) -> None:
+    original = rss_source_fetch.urllib.request.urlopen
+    rss_source_fetch.urllib.request.urlopen = lambda *_args, **_kwargs: (_ for _ in ()).throw(failure)  # type: ignore[assignment]
+    try:
+        with pytest.raises(ValueError, match="feed_fetch_failed"):
+            rss_source_fetch.fetch_url_with_metadata("https://example.test/feed.xml")
+    finally:
+        rss_source_fetch.urllib.request.urlopen = original
+
+
+def test_metadata_fetch_translates_short_or_malformed_read() -> None:
+    class Headers:
+        def get_all(self, _name: str) -> list[str]:
+            return []
+
+        def get(self, name: str) -> str | None:
+            return "10" if name == "Content-Length" else None
+
+    class Response:
+        headers = Headers()
+
+        def __enter__(self) -> "Response":
+            return self
+
+        def __exit__(self, *_args: object) -> bool:
+            return False
+
+        def read(self, _size: int) -> str:
+            return "short"
+
+    original = rss_source_fetch.urllib.request.urlopen
+    rss_source_fetch.urllib.request.urlopen = lambda *_args, **_kwargs: Response()  # type: ignore[assignment]
+    try:
+        with pytest.raises(ValueError, match="feed_fetch_failed"):
+            rss_source_fetch.fetch_url_with_metadata("https://example.test/feed.xml")
+    finally:
+        rss_source_fetch.urllib.request.urlopen = original
+
+
 def test_strict_signal_priority_and_canonical_readback() -> None:
     wire = build(ATOM, {"Last-Modified": "Sun, 12 Jul 2026 11:00:00 GMT", "Date": "Mon, 13 Jul 2026 12:00:00 GMT"})
     value = read_freshness_evidence(wire)
@@ -136,6 +177,25 @@ def test_stale_and_future_fail_closed() -> None:
 
 def test_zero_entry_feed_can_have_freshness_without_being_inferred_stale() -> None:
     assert read_freshness_evidence(build(RSS))["decision"] == "eligible"
+
+
+def test_source_identity_rejects_fragment_and_unicode_encode_failure() -> None:
+    with pytest.raises(FreshnessError, match="source_identity_invalid"):
+        build_freshness_evidence(
+            feed_id="feed-a",
+            source_url="https://example.test/feed.xml#fragment",
+            body=RSS,
+            response_headers={},
+            reference_time=REFERENCE,
+        )
+    with pytest.raises(FreshnessError, match="source_identity_invalid"):
+        build_freshness_evidence(
+            feed_id="feed-a",
+            source_url="https://example.test/\ud800",
+            body=RSS,
+            response_headers={},
+            reference_time=REFERENCE,
+        )
 
 
 def test_wire_size_and_tamper_fail_closed() -> None:
