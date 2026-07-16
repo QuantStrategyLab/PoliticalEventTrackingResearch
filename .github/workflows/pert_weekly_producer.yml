@@ -1,0 +1,82 @@
+name: PERT Weekly Producer Artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      period_start:
+        description: "Expected Monday period start; must match the immediate prior completed UTC week."
+        required: false
+        type: string
+      as_of:
+        description: "Expected Sunday as_of; must match period_start."
+        required: false
+        type: string
+  schedule:
+    - cron: "45 12 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pert-weekly-producer-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build-weekly-artifact:
+    if: >-
+      github.repository == 'QuantStrategyLab/PoliticalEventTrackingResearch' &&
+      github.ref == 'refs/heads/main' &&
+      github.workflow_ref == 'QuantStrategyLab/PoliticalEventTrackingResearch/.github/workflows/pert_weekly_producer.yml@refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: QuantStrategyLab/PoliticalEventTrackingResearch
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify trusted run and freeze reference time
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          test "${RUN_ATTEMPT}" = "1"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_SHA}"
+          printf 'PERT_REFERENCE_TIME=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_ENV}"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Build and read back weekly artifact
+        env:
+          PERIOD_START: ${{ github.event.inputs.period_start || '' }}
+          AS_OF: ${{ github.event.inputs.as_of || '' }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          PRODUCER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/output/pert_weekly
+          ARGS=(
+            --feeds config/free_rss_feeds.csv
+            --aliases config/core_us_equity_aliases.csv
+            --watchlist data/live/political_watchlist.csv
+            --output-dir data/output/pert_weekly/artifact
+            --reference-time "${PERT_REFERENCE_TIME}"
+            --source-run-id "${RUN_ID}"
+            --source-attempt "${RUN_ATTEMPT}"
+            --producer-ref "${PRODUCER_SHA}"
+          )
+          if [ -n "${PERIOD_START}" ] || [ -n "${AS_OF}" ]; then
+            ARGS+=(--period-start "${PERIOD_START}" --as-of "${AS_OF}")
+          fi
+          python scripts/build_weekly_producer_artifact.py "${ARGS[@]}"
+      - name: Upload weekly artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: political-event-weekly-v1
+          path: data/output/pert_weekly/artifact/
+          if-no-files-found: error
+          retention-days: 30

@@ -7,7 +7,25 @@ from unittest.mock import patch
 import pytest
 
 from political_event_tracking_research import rss_source_fetch
-from political_event_tracking_research.rss_source_fetch import FeedConfig, fetch_rss_sources, parse_feed_items
+from political_event_tracking_research.rss_source_fetch import (
+    FeedConfig,
+    fetch_rss_sources,
+    parse_feed_items,
+    parse_feed_snapshot,
+)
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected_kind"),
+    [
+        (b"<rss version='2.0'><channel/></rss>", "rss2"),
+        (b"<feed xmlns='http://www.w3.org/2005/Atom'/>", "atom"),
+    ],
+)
+def test_empty_feed_preserves_parser_kind(payload: bytes, expected_kind: str) -> None:
+    kind, rows = parse_feed_snapshot(payload, FeedConfig("x", "https://example.test", "official", ""))
+    assert kind == expected_kind
+    assert rows == []
 
 
 def test_parse_rss_feed_items_to_source_items() -> None:
