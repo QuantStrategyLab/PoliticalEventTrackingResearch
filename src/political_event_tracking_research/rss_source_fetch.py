@@ -70,6 +70,10 @@ def load_feed_config(path: str | Path) -> list[FeedConfig]:
 
 
 def fetch_url(url: str) -> bytes:
+    return fetch_url_with_metadata(url)[0]
+
+
+def fetch_url_with_metadata(url: str) -> tuple[bytes, dict[str, str]]:
     request = urllib.request.Request(
         url,
         headers={
@@ -79,9 +83,17 @@ def fetch_url(url: str) -> bytes:
     )
     with urllib.request.urlopen(request, timeout=20) as response:
         payload = response.read(MAX_XML_BYTES + 1)
+        response_headers = getattr(response, "headers", None)
+        headers = {}
+        if response_headers is not None:
+            headers = {
+                name: value
+                for name in ("Date", "Last-Modified")
+                if (value := response_headers.get(name)) is not None
+            }
     if len(payload) > MAX_XML_BYTES:
         raise FeedXmlError("feed_xml_oversize")
-    return payload
+    return payload, headers
 
 
 def strip_html(value: str) -> str:
