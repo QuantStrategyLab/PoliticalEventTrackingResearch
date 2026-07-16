@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -126,3 +127,12 @@ def test_workflow_is_private_observed_only() -> None:
     assert "contents: read" in text
     assert "actions: read" not in text
     assert "private_research_only" in (Path(__file__).parents[1] / "docs/pert_weekly_observed_snapshot_artifact.md").read_text(encoding="utf-8") or "private" in text
+
+
+def test_workflow_actions_are_immutable_full_sha_pinned() -> None:
+    workflow = Path(__file__).parents[1] / ".github/workflows/pert_weekly_observed_snapshot.yml"
+    text = workflow.read_text(encoding="utf-8")
+    refs = re.findall(r"uses:\s*actions/(checkout|setup-python|upload-artifact)@([^\s#]+)", text)
+
+    assert {name for name, _ in refs} == {"checkout", "setup-python", "upload-artifact"}
+    assert all(re.fullmatch(r"[0-9a-f]{40}", ref) for _, ref in refs)

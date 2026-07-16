@@ -7,7 +7,12 @@ from unittest.mock import patch
 import pytest
 
 from political_event_tracking_research import rss_source_fetch
-from political_event_tracking_research.rss_source_fetch import FeedConfig, fetch_rss_sources, parse_feed_items
+from political_event_tracking_research.rss_source_fetch import (
+    FeedConfig,
+    fetch_rss_sources,
+    parse_feed_items,
+    parse_feed_snapshot,
+)
 
 
 def test_parse_rss_feed_items_to_source_items() -> None:
@@ -68,6 +73,38 @@ def test_parse_atom_feed_items_to_source_items() -> None:
     assert rows[0]["published_at"] == "2026-05-02T10:00:00Z"
     assert rows[0]["source_url"] == "https://www.sec.gov/example/evt2"
     assert "EVT2" in rows[0]["text"]
+
+
+def test_parse_prefixed_namespaced_rss_direct_channel_and_item() -> None:
+    feed_xml = b"""<?xml version="1.0"?>
+    <r:rss xmlns:r="urn:historical-rss" version="2.0">
+      <r:channel>
+        <r:item>
+          <r:title>Namespaced EVT3</r:title>
+          <r:link>https://example.test/evt3</r:link>
+          <r:pubDate>Fri, 01 May 2026 12:30:00 GMT</r:pubDate>
+          <r:description>Namespaced description.</r:description>
+        </r:item>
+      </r:channel>
+    </r:rss>
+    """
+    feed = FeedConfig("namespaced", "https://example.test/feed", "official", "")
+
+    kind, rows = parse_feed_snapshot(feed_xml, feed, allow_missing_dates=False)
+
+    assert kind == "rss2"
+    assert rows[0]["source_url"] == "https://example.test/evt3"
+    assert rows[0]["text"] == "Namespaced EVT3 Namespaced description."
+
+
+def test_parse_namespaced_rss_empty_feed_preserves_rss_kind() -> None:
+    feed_xml = b'<r:rss xmlns:r="urn:historical-rss"><r:channel/></r:rss>'
+    feed = FeedConfig("namespaced-empty", "https://example.test/feed", "official", "")
+
+    kind, rows = parse_feed_snapshot(feed_xml, feed, allow_missing_dates=False)
+
+    assert kind == "rss2"
+    assert rows == []
 
 
 @pytest.mark.parametrize(

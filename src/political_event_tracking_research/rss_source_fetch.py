@@ -113,9 +113,21 @@ def child_text(element: ET.Element, names: tuple[str, ...]) -> str:
     return ""
 
 
+def _local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def _rss_child_text(element: ET.Element, names: tuple[str, ...]) -> str:
+    wanted = set(names)
+    for child in element:
+        if _local_name(child.tag) in wanted and child.text:
+            return child.text.strip()
+    return ""
+
+
 def rss_item_link(item: ET.Element) -> str:
-    guid = child_text(item, ("guid",))
-    link = child_text(item, ("link",))
+    guid = _rss_child_text(item, ("guid",))
+    link = _rss_child_text(item, ("link",))
     return link or guid
 
 
@@ -150,13 +162,15 @@ def parse_feed_snapshot(
         raise FeedXmlError("feed_xml_invalid") from None
     rows: list[dict[str, str]] = []
 
-    channel = root.find("./channel") if root.tag == "rss" else None
+    is_rss = _local_name(root.tag) == "rss"
+    channel = next((child for child in root if _local_name(child.tag) == "channel"), None) if is_rss else None
     if channel is not None:
-        for item in channel.findall("./item")[:max_items]:
-            title = child_text(item, ("title",))
+        items = [child for child in channel if _local_name(child.tag) == "item"]
+        for item in items[:max_items]:
+            title = _rss_child_text(item, ("title",))
             link = rss_item_link(item)
-            published = child_text(item, ("pubDate", "{http://purl.org/dc/elements/1.1/}date"))
-            description = child_text(item, ("description", "{http://purl.org/rss/1.0/modules/content/}encoded"))
+            published = _rss_child_text(item, ("pubDate", "date"))
+            description = _rss_child_text(item, ("description", "encoded"))
             text = " ".join(part for part in (title, strip_html(description)) if part)
             rows.append(
                 {
