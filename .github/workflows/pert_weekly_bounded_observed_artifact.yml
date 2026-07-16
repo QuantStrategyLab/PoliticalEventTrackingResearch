@@ -1,0 +1,85 @@
+name: PERT Weekly Bounded Observed Artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      period_start:
+        description: "Expected Monday of the immediate prior completed UTC ISO week."
+        required: true
+        type: string
+      as_of:
+        description: "Expected Sunday as_of for period_start."
+        required: true
+        type: string
+  schedule:
+    - cron: "45 12 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  build-observed-artifact:
+    if: >-
+      github.repository == 'QuantStrategyLab/PoliticalEventTrackingResearch' &&
+      github.ref == 'refs/heads/main' &&
+      github.workflow_ref == 'QuantStrategyLab/PoliticalEventTrackingResearch/.github/workflows/pert_weekly_bounded_observed_artifact.yml@refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          repository: QuantStrategyLab/PoliticalEventTrackingResearch
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate run and capture one reference time
+        env:
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "${RUN_ATTEMPT}" = "1"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_SHA}"
+          printf 'RETRIEVED_AT=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_ENV}"
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Build and read back private observed artifact
+        env:
+          PERIOD_START: ${{ github.event.inputs.period_start || '' }}
+          AS_OF: ${{ github.event.inputs.as_of || '' }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          PRODUCER_SHA: ${{ github.sha }}
+          RUN_MODE: ${{ github.event_name == 'workflow_dispatch' && 'manual' || 'scheduled' }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/output/pert_weekly_bounded
+          ARGS=(
+            --feeds config/free_rss_feeds.csv
+            --aliases config/core_us_equity_aliases.csv
+            --watchlist data/live/political_watchlist.csv
+            --output-dir data/output/pert_weekly_bounded/artifact
+            --retrieved-at "${RETRIEVED_AT}"
+            --source-run-id "${RUN_ID}"
+            --source-attempt "${RUN_ATTEMPT}"
+            --producer-ref "${PRODUCER_SHA}"
+            --run-mode "${RUN_MODE}"
+          )
+          if [ -n "${PERIOD_START}" ] || [ -n "${AS_OF}" ]; then
+            ARGS+=(--period-start "${PERIOD_START}" --as-of "${AS_OF}")
+          fi
+          python scripts/build_bounded_observed_weekly_artifact.py "${ARGS[@]}"
+      - name: Upload private observed artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: political-event-weekly-v1
+          path: |
+            data/output/pert_weekly_bounded/artifact/period_lock.json
+            data/output/pert_weekly_bounded/artifact/political_events.csv
+            data/output/pert_weekly_bounded/artifact/political_watchlist.csv
+            data/output/pert_weekly_bounded/artifact/political_event_weekly.json
+            data/output/pert_weekly_bounded/artifact/weekly_manifest.json
+          if-no-files-found: error
+          retention-days: 30
