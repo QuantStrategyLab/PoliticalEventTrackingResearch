@@ -76,6 +76,18 @@ def test_invalid_high_priority_signal_does_not_fallback() -> None:
         build(body, {"Last-Modified": "Sun, 12 Jul 2026 11:00:00 GMT"})
 
 
+def test_present_but_empty_high_priority_signal_does_not_fallback() -> None:
+    body = ATOM.replace(b"2026-07-13T11:00:00Z", b"")
+    with pytest.raises(FreshnessError, match="source_freshness_invalid"):
+        build(body, {"Last-Modified": "Sun, 12 Jul 2026 11:00:00 GMT"})
+
+
+def test_timezone_less_signal_is_invalid() -> None:
+    body = ATOM.replace(b"2026-07-13T11:00:00Z", b"2026-07-13T11:00:00")
+    with pytest.raises(FreshnessError, match="source_freshness_invalid"):
+        build(body, {"Last-Modified": "Sun, 12 Jul 2026 11:00:00 GMT"})
+
+
 @pytest.mark.parametrize(
     "body,headers,error",
     [
@@ -133,3 +145,32 @@ def test_fetch_boundary_returns_body_and_only_freshness_headers() -> None:
         rss_source_fetch.urllib.request.urlopen = original
     assert body == RSS
     assert headers == {"Date": "Mon, 13 Jul 2026 12:00:00 GMT", "Last-Modified": "Sun, 12 Jul 2026 11:00:00 GMT"}
+
+
+def test_fetch_boundary_rejects_duplicate_freshness_header() -> None:
+    class Headers:
+        def get_all(self, name: str) -> list[str]:
+            return ["Sun, 12 Jul 2026 11:00:00 GMT", "Sun, 12 Jul 2026 12:00:00 GMT"] if name == "Last-Modified" else []
+
+        def get(self, _name: str) -> str | None:
+            return None
+
+    class Response:
+        headers = Headers()
+
+        def __enter__(self) -> "Response":
+            return self
+
+        def __exit__(self, *_args: object) -> bool:
+            return False
+
+        def read(self, _size: int) -> bytes:
+            return RSS
+
+    original = rss_source_fetch.urllib.request.urlopen
+    rss_source_fetch.urllib.request.urlopen = lambda *_args, **_kwargs: Response()  # type: ignore[assignment]
+    try:
+        with pytest.raises(ValueError, match="feed_header_duplicate"):
+            rss_source_fetch.fetch_url_with_metadata("https://example.test/feed.xml")
+    finally:
+        rss_source_fetch.urllib.request.urlopen = original

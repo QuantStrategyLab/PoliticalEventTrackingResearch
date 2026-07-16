@@ -84,13 +84,13 @@ def _parse_date_signal(value: object) -> tuple[bool, str | None]:
         if parsed is None:
             raise ValueError
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=dt.UTC)
+            return False, None
         return True, _canonical_timestamp(parsed)
     except (TypeError, ValueError, OverflowError):
         try:
             parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
             if parsed.tzinfo is None:
-                parsed = parsed.replace(tzinfo=dt.UTC)
+                return False, None
             return True, _canonical_timestamp(parsed)
         except (TypeError, ValueError, OverflowError):
             return False, None
@@ -140,7 +140,7 @@ def _xml_signal(body: bytes, kind: str) -> tuple[bool, str | None]:
         if len(channels) != 1:
             _fail("source_freshness_invalid")
         if kind == "rss_channel_last_build_date":
-            values = [child.text.strip() for child in channels[0] if child.tag == "lastBuildDate" and child.text]
+            values = [child.text.strip() if child.text is not None else "" for child in channels[0] if child.tag == "lastBuildDate"]
             if len(values) > 1:
                 _fail("source_freshness_invalid")
             if not values:
@@ -149,7 +149,7 @@ def _xml_signal(body: bytes, kind: str) -> tuple[bool, str | None]:
         return False, None
     if root.tag == "{http://www.w3.org/2005/Atom}feed":
         if kind == "atom_feed_updated":
-            values = [child.text.strip() for child in root if child.tag == "{http://www.w3.org/2005/Atom}updated" and child.text]
+            values = [child.text.strip() if child.text is not None else "" for child in root if child.tag == "{http://www.w3.org/2005/Atom}updated"]
             if len(values) > 1:
                 _fail("source_freshness_invalid")
             if not values:

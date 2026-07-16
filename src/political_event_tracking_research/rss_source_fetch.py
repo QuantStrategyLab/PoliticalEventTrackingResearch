@@ -86,11 +86,14 @@ def fetch_url_with_metadata(url: str) -> tuple[bytes, dict[str, str]]:
         response_headers = getattr(response, "headers", None)
         headers = {}
         if response_headers is not None:
-            headers = {
-                name: value
-                for name in ("Date", "Last-Modified")
-                if (value := response_headers.get(name)) is not None
-            }
+            for name in ("Date", "Last-Modified"):
+                get_all = getattr(response_headers, "get_all", None)
+                values = get_all(name) if callable(get_all) else None
+                if values is not None and len(values) > 1:
+                    raise FeedXmlError("feed_header_duplicate")
+                value = response_headers.get(name)
+                if value is not None:
+                    headers[name] = value
     if len(payload) > MAX_XML_BYTES:
         raise FeedXmlError("feed_xml_oversize")
     return payload, headers
