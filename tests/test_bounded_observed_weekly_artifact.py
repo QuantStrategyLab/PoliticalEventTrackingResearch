@@ -138,6 +138,50 @@ def test_tampered_manifest_and_coverage_values_are_rejected(tmp_path: Path, monk
         observed.read_observed_manifest(wire)
 
 
+def test_feed_snapshot_url_must_be_exact_nonempty_string(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    output = _build(tmp_path, monkeypatch, {"0": RSS})
+    manifest = observed.read_observed_manifest((output / "weekly_manifest.json").read_bytes())
+    manifest["feed_snapshots"][0]["feed_url"] = ""
+    with pytest.raises(BoundedObservedError, match="feed_snapshot_invalid"):
+        observed.serialize_observed_manifest(manifest)
+
+    manifest["feed_snapshots"][0]["feed_url"] = 123
+    with pytest.raises(BoundedObservedError, match="feed_snapshot_invalid"):
+        observed.serialize_observed_manifest(manifest)
+
+
+def test_readback_compares_every_exported_h2c_field(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    output = _build(tmp_path, monkeypatch, {"0": RSS})
+    manifest_bytes = (output / "weekly_manifest.json").read_bytes()
+    manifest = observed.read_observed_manifest(manifest_bytes)
+    manifest["h2c"]["aggregate_row_digest"] = "b" * 64
+    tampered_manifest = observed.serialize_observed_manifest(manifest)
+    with pytest.raises(BoundedObservedError, match="artifact_readback_invalid"):
+        observed._readback(
+            output,
+            (output / "period_lock.json").read_bytes(),
+            (output / "political_event_weekly.json").read_bytes(),
+            tampered_manifest,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (("feed_count", 0), ("rejected_row_count", 1), ("accepted_row_count", 0)),
+)
+def test_manifest_h2c_totals_must_match_success_invariants(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+    value: int,
+) -> None:
+    output = _build(tmp_path, monkeypatch, {"0": RSS})
+    manifest = observed.read_observed_manifest((output / "weekly_manifest.json").read_bytes())
+    manifest["h2c"][field] = value
+    with pytest.raises(BoundedObservedError):
+        observed.serialize_observed_manifest(manifest)
+
+
 def test_manual_period_mismatch_and_attempt_two_fail_before_fetch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     feeds, aliases, watchlist = _inputs(tmp_path)
     calls: list[str] = []

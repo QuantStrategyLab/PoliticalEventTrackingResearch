@@ -418,6 +418,7 @@ def _manifest_payload(value: Mapping[str, object]) -> dict[str, object]:
         if feed_id <= previous:
             _fail("feed_snapshot_order_invalid")
         previous = feed_id
+        _string(item["feed_url"], "feed_snapshot_invalid")
         if item["kind"] not in {"rss2", "atom"}:
             _fail("feed_snapshot_invalid")
         _digest(item["body_sha256"])
@@ -434,7 +435,15 @@ def _manifest_payload(value: Mapping[str, object]) -> dict[str, object]:
         _safe_int(h2c[key], "status_binding_invalid")
     if h2c["publication_complete"] is not True or h2c["eligible_for_live_publication"] is not True or h2c["failed_feed_count"] != 0 or h2c["quarantined_feed_count"] != 0:
         _fail("status_binding_invalid")
-    if h2c["configured_feed_count"] != len(snapshots) or h2c["successful_feed_count"] != len(snapshots) or h2c["accepted_row_count"] != sum(item["observed_count"] for item in snapshots):
+    if (
+        h2c["configured_feed_count"] != len(snapshots)
+        or h2c["feed_count"] != len(snapshots)
+        or h2c["successful_feed_count"] != len(snapshots)
+        or h2c["failed_feed_count"] != 0
+        or h2c["quarantined_feed_count"] != 0
+        or h2c["accepted_row_count"] != sum(item["observed_count"] for item in snapshots)
+        or h2c["rejected_row_count"] != 0
+    ):
         _fail("status_binding_invalid")
     _digest(h2c["aggregate_row_digest"])
     _safe_int(value["selected_period_count"], "selected_count_invalid")
@@ -501,8 +510,10 @@ def _readback(output: Path, lock_bytes: bytes, status_bytes: bytes, manifest_byt
         if (output / "period_lock.json").read_bytes() != lock_bytes or (output / "political_event_weekly.json").read_bytes() != status_bytes or (output / "weekly_manifest.json").read_bytes() != manifest_bytes:
             _fail("artifact_readback_invalid")
         lock = parse_period_lock_bytes(lock_bytes)
-        read_status(status_bytes)
+        status = read_status(status_bytes)
         manifest = read_observed_manifest(manifest_bytes)
+        if manifest["h2c"] != {key: status[key] for key in _H2C_KEYS}:
+            _fail("artifact_readback_invalid")
         expected_records = {
             "period_lock.json": _file_record(output / "period_lock.json", "period_lock", 0),
             "political_events.csv": _file_record(output / "political_events.csv", "selected_period_events", _read_count(output / "political_events.csv")),
