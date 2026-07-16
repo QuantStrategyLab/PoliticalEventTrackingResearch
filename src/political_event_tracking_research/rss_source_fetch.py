@@ -84,6 +84,32 @@ def fetch_url(url: str) -> bytes:
     return payload
 
 
+def fetch_url_with_metadata(url: str) -> tuple[bytes, dict[str, str]]:
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": USER_AGENT,
+            "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=20) as response:
+        payload = response.read(MAX_XML_BYTES + 1)
+        response_headers = getattr(response, "headers", None)
+        headers: dict[str, str] = {}
+        if response_headers is not None:
+            for name in ("Date", "Last-Modified"):
+                get_all = getattr(response_headers, "get_all", None)
+                values = get_all(name) if callable(get_all) else None
+                if values is not None and len(values) > 1:
+                    raise FeedXmlError("feed_header_duplicate")
+                value = response_headers.get(name)
+                if value is not None:
+                    headers[name] = value
+    if len(payload) > MAX_XML_BYTES:
+        raise FeedXmlError("feed_xml_oversize")
+    return payload, headers
+
+
 def strip_html(value: str) -> str:
     text = re.sub(r"<[^>]+>", " ", value or "")
     return html.unescape(re.sub(r"\s+", " ", text).strip())
