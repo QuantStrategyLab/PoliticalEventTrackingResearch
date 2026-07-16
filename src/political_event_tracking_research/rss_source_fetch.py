@@ -89,9 +89,11 @@ def strip_html(value: str) -> str:
     return html.unescape(re.sub(r"\s+", " ", text).strip())
 
 
-def parse_datetime(value: str) -> str:
+def parse_datetime(value: str, *, allow_missing: bool = True) -> str:
     text = (value or "").strip()
     if not text:
+        if not allow_missing:
+            raise FeedXmlError("feed_date_missing")
         return dt.datetime.now(dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     try:
         parsed = email.utils.parsedate_to_datetime(text)
@@ -131,7 +133,13 @@ def stable_item_id(feed_id: str, link: str, title: str) -> str:
     return f"{feed_id}-{digest}"
 
 
-def parse_feed_items(feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25) -> list[dict[str, str]]:
+def parse_feed_snapshot(
+    feed_bytes: bytes,
+    feed: FeedConfig,
+    *,
+    max_items: int = 25,
+    allow_missing_dates: bool = True,
+) -> tuple[str, list[dict[str, str]]]:
     if type(feed_bytes) is not bytes:
         raise FeedXmlError("feed_xml_invalid")
     if len(feed_bytes) > MAX_XML_BYTES:
@@ -142,9 +150,9 @@ def parse_feed_items(feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25
         raise FeedXmlError("feed_xml_invalid") from None
     rows: list[dict[str, str]] = []
 
-    rss_items = root.findall("./channel/item")
-    if rss_items:
-        for item in rss_items[:max_items]:
+    channel = root.find("./channel") if root.tag == "rss" else None
+    if channel is not None:
+        for item in channel.findall("./item")[:max_items]:
             title = child_text(item, ("title",))
             link = rss_item_link(item)
             published = child_text(item, ("pubDate", "{http://purl.org/dc/elements/1.1/}date"))
@@ -153,14 +161,14 @@ def parse_feed_items(feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25
             rows.append(
                 {
                     "item_id": stable_item_id(feed.feed_id, link, title),
-                    "published_at": parse_datetime(published),
+                    "published_at": parse_datetime(published, allow_missing=allow_missing_dates),
                     "source_type": feed.source_type,
                     "source_url": link,
                     "author": feed.author,
                     "text": text,
                 }
             )
-        return rows
+        return "rss2", rows
 
     atom_entries = root.findall("{http://www.w3.org/2005/Atom}entry")
     for entry in atom_entries[:max_items]:
@@ -175,14 +183,20 @@ def parse_feed_items(feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25
         rows.append(
             {
                 "item_id": stable_item_id(feed.feed_id, link, title),
-                "published_at": parse_datetime(published),
+                "published_at": parse_datetime(published, allow_missing=allow_missing_dates),
                 "source_type": feed.source_type,
                 "source_url": link,
                 "author": feed.author,
                 "text": text,
             }
         )
-    return rows
+    if root.tag != "{http://www.w3.org/2005/Atom}feed":
+        raise FeedXmlError("feed_xml_invalid")
+    return "atom", rows
+
+
+def parse_feed_items(feed_bytes: bytes, feed: FeedConfig, *, max_items: int = 25) -> list[dict[str, str]]:
+    return parse_feed_snapshot(feed_bytes, feed, max_items=max_items)[1]
 
 
 def utc_now_iso() -> str:
