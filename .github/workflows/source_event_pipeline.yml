@@ -31,6 +31,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref_name }}
@@ -63,7 +64,7 @@ jobs:
             --watchlist "${WATCHLIST_PATH}" \
             --events data/output/source_event_pipeline/source_events.csv \
             --output data/output/source_event_pipeline/source_tracker.csv
-      - name: Publish live CSV outputs to repository
+      - name: Stage live CSV outputs for protected publication
         env:
           COMMIT_OUTPUTS: ${{ github.event_name == 'schedule' && 'true' || github.event.inputs.commit_outputs || 'false' }}
         run: |
@@ -89,15 +90,16 @@ jobs:
             --base-dir . \
             --output data/live/source_manifest.json \
             "${MANIFEST_PATHS[@]}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/live/source_events.csv data/live/political_events.csv data/live/source_tracker.csv data/live/source_manifest.json
-          if git diff --cached --quiet; then
-            echo "No live source output changes to commit."
-          else
-            git commit -m "Update live source events [skip ci]"
-            git push
-          fi
+      - name: Create or update protected live-output PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/publish_live_outputs_pr.py \
+            --branch automation/live-source-events \
+            --title "Update generated live source events" \
+            --body "Automated research-data update. Generated files are reviewed through the normal protected-branch CI path; this workflow never pushes to main directly." \
+            --commit-message "Update generated live source events"
       - name: Upload source event artifact
         uses: actions/upload-artifact@v7
         with:
