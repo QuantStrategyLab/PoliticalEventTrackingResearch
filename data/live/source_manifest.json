@@ -3,28 +3,28 @@
   "artifacts": {
     "political_events.csv": {
       "path": "data/live/political_events.csv",
-      "row_count": 11,
-      "sha256": "6fb3bf4733d80e9db2dcd49986b7d815c751e1751633aa78822dc23ffaac373f"
+      "row_count": 18,
+      "sha256": "7155f50be16b5e0a4a90bc4ba7a751fa2a51be8662d70242b29a374430c2903c"
     },
     "source_events.csv": {
       "path": "data/live/source_events.csv",
-      "row_count": 11,
-      "sha256": "6fb3bf4733d80e9db2dcd49986b7d815c751e1751633aa78822dc23ffaac373f"
+      "row_count": 18,
+      "sha256": "7155f50be16b5e0a4a90bc4ba7a751fa2a51be8662d70242b29a374430c2903c"
     },
     "source_fetch_status.json": {
       "path": "data/live/source_fetch_status.json",
       "row_count": null,
-      "sha256": "9d4079a397fc86810e69839b733b75a9c1397e07f0726f28586089bc2892ca07"
+      "sha256": "13504ef15e5998bbce26f78c621f61d5a9f94aa8a5a83a889088bbeeac5aff85"
     },
     "source_items.csv": {
       "path": "data/live/source_items.csv",
       "row_count": 195,
-      "sha256": "27c6cff0f1a28bfca7546ec942fd3e5457a88da7d99a17d3d0056d0fe374b6f3"
+      "sha256": "9705078f025c43e12fb7a3f0faad3267223442b788aeb95b509c3eee4a9f6fd0"
     },
     "source_tracker.csv": {
       "path": "data/live/source_tracker.csv",
       "row_count": 39,
-      "sha256": "151135e3483de8b72bc128c6a9073c186793ba039f74487d1560383a3049fed0"
+      "sha256": "425a3a09ac5d7be3c4a2b3396132132d867034c449b1960bc6bb51dca5e3be6a"
     }
   },
   "data_quality": {
@@ -36,23 +36,24 @@
     },
     "source_events": {
       "confidence_counts": {
-        "high": 11
+        "high": 18
       },
       "event_type_counts": {
         "policy_capital": 1,
-        "procurement": 1,
-        "public_mention": 9
+        "procurement": 3,
+        "public_mention": 14
       },
-      "symbol_count": 5,
+      "symbol_count": 6,
       "symbols": [
         "COIN",
         "INTC",
+        "IONQ",
         "MSTR",
         "OKLO",
         "PANW"
       ]
     }
   },
-  "generated_at": "2026-06-27T14:16:02.632310+00:00",
+  "generated_at": "2026-08-29T16:41:51.223965+00:00",
   "manifest_type": "political_event_live_outputs"
 }

@@ -1,8 +1,9 @@
 symbol,name,bucket,trigger_status,priority_score,event_count,latest_event_date,latest_event_type,source_url,thesis
-PANW,Palo Alto Networks,policy_capital,mentioned,32,4,2025-12-17,public_mention,https://investors.paloaltonetworks.com/,"Cybersecurity, federal spend, and breach-response watch."
+MSTR,Strategy,named_mentioned,mentioned,46,6,2026-08-18,public_mention,https://www.strategy.com/investor-relations,"Bitcoin treasury, crypto regulation, and capital-market sentiment watch."
+COIN,Coinbase,named_mentioned,mentioned,32,4,2026-08-18,public_mention,https://investor.coinbase.com/,"Crypto policy, SEC enforcement, and market-structure watch."
 INTC,Intel,policy_capital,policy_triggered,25,3,2024-05-07,public_mention,https://www.intc.com/,"CHIPS Act, foundry, export-control, and domestic semiconductor policy watch."
-MSTR,Strategy,named_mentioned,mentioned,18,2,2024-07-29,public_mention,https://www.strategy.com/investor-relations,"Bitcoin treasury, crypto regulation, and capital-market sentiment watch."
-COIN,Coinbase,named_mentioned,mentioned,11,1,2026-05-08,public_mention,https://investor.coinbase.com/,"Crypto policy, SEC enforcement, and market-structure watch."
+PANW,Palo Alto Networks,policy_capital,mentioned,25,3,2025-12-17,public_mention,https://investors.paloaltonetworks.com/,"Cybersecurity, federal spend, and breach-response watch."
+IONQ,IonQ,named_mentioned,mentioned,11,1,2026-08-24,public_mention,https://investors.ionq.com/,Quantum computing and government research funding watch.
 OKLO,Oklo,policy_capital,mentioned,11,1,2026-03-30,public_mention,https://oklo.com/investors/,"Advanced nuclear, data-center power, and DOE/NRC policy watch."
 AAPL,Apple,named_mentioned,watchlist,4,0,,,https://www.apple.com/investor-relations/,"AI devices, supply-chain, tariff, antitrust, and platform-policy watch."
 AMD,Advanced Micro Devices,named_mentioned,watchlist,4,0,,,https://ir.amd.com/,AI accelerator and semiconductor export-control watch.
@@ -16,7 +17,6 @@ ENPH,Enphase Energy,policy_capital,watchlist,4,0,,,https://investor.enphase.com/
 F,Ford,policy_capital,watchlist,4,0,,,https://shareholder.ford.com/,"EV subsidy, tariff, labor, and industrial-policy watch."
 GE,GE Aerospace,policy_capital,watchlist,4,0,,,https://www.geaerospace.com/investor-relations,Aerospace procurement and export-control watch.
 GOOGL,Alphabet,named_mentioned,watchlist,4,0,,,https://abc.xyz/investor/,"AI, antitrust, cloud, search, and autonomous-driving policy watch."
-IONQ,IonQ,named_mentioned,watchlist,4,0,,,https://investors.ionq.com/,Quantum computing and government research funding watch.
 JPM,JPMorgan Chase,named_mentioned,watchlist,4,0,,,https://www.jpmorganchase.com/ir,"Bank regulation, rates, credit, and market-structure watch."
 LMT,Lockheed Martin,policy_capital,watchlist,4,0,,,https://investors.lockheedmartin.com/,"Defense procurement, missile defense, and geopolitics watch."
 META,Meta Platforms,named_mentioned,watchlist,4,0,,,https://investor.fb.com/,"AI, social regulation, privacy, antitrust, and metaverse watch."
