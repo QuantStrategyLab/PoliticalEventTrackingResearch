@@ -35,8 +35,7 @@ on:
     - cron: "15 12 * * 6"
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref_name }}
@@ -100,16 +99,16 @@ jobs:
             data/live/political_events.csv \
             data/live/source_tracker.csv
           git add data/live/source_items.csv data/live/source_events.csv data/live/political_events.csv data/live/source_tracker.csv data/live/source_fetch_status.json data/live/source_manifest.json
-      - name: Create or update protected live-output PR
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Create human-review publication handoff
         run: |
           python scripts/publish_live_outputs_pr.py \
             --branch automation/live-rss-source-events \
             --title "Update generated live RSS source events" \
             --body "Automated research-data update. Generated files are reviewed through the normal protected-branch CI path; this workflow never pushes to main directly." \
-            --commit-message "Update generated live RSS source events"
+            --commit-message "Update generated live RSS source events" \
+            --handoff-dir data/output/rss_source_pipeline
       - name: Upload RSS source artifact
+        if: ${{ always() }}
         uses: actions/upload-artifact@v7
         with:
           name: rss-source-pipeline

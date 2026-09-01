@@ -30,8 +30,7 @@ on:
     - cron: "45 12 * * 6"
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref_name }}
@@ -91,16 +90,16 @@ jobs:
             --output data/live/source_manifest.json \
             "${MANIFEST_PATHS[@]}"
           git add data/live/source_events.csv data/live/political_events.csv data/live/source_tracker.csv data/live/source_manifest.json
-      - name: Create or update protected live-output PR
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Create human-review publication handoff
         run: |
           python scripts/publish_live_outputs_pr.py \
             --branch automation/live-source-events \
             --title "Update generated live source events" \
             --body "Automated research-data update. Generated files are reviewed through the normal protected-branch CI path; this workflow never pushes to main directly." \
-            --commit-message "Update generated live source events"
+            --commit-message "Update generated live source events" \
+            --handoff-dir data/output/source_event_pipeline
       - name: Upload source event artifact
+        if: ${{ always() }}
         uses: actions/upload-artifact@v7
         with:
           name: source-event-pipeline
