@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
 """Prepare generated research data for protected-branch publication.
 
 Scheduled workflows must not push generated data directly to ``main``.  This
 repository-local adapter can create an auditable patch and HUMAN_REQUIRED
-receipt without mutating the remote.  Its legacy PR path remains available for
-an explicitly approved identity.
+receipt without mutating the repository or remote.
 """
 
 from __future__ import annotations
@@ -39,27 +37,6 @@ def run(command: Sequence[str], *, capture: bool = False, strip: bool = True) ->
 
 def staged_changes_present() -> bool:
     return subprocess.run(["git", "diff", "--cached", "--quiet"], check=False).returncode != 0
-
-
-def existing_pull_request(branch: str) -> str:
-    return run(
-        [
-            "gh",
-            "pr",
-            "list",
-            "--repo",
-            os.environ["GITHUB_REPOSITORY"],
-            "--state",
-            "open",
-            "--head",
-            branch,
-            "--json",
-            "url",
-            "--jq",
-            ".[0].url // \"\"",
-        ],
-        capture=True,
-    )
 
 
 def write_handoff(handoff_dir: Path, branch: str, title: str) -> None:
@@ -104,42 +81,14 @@ def publish(
     *,
     handoff_dir: Path | None = None,
 ) -> str:
+    if handoff_dir is None:
+        raise PublishError("--handoff-dir is required; remote publication is disabled")
+
     if not staged_changes_present():
         return "No generated data changes to publish."
 
-    if handoff_dir is not None:
-        write_handoff(handoff_dir, branch, title)
-        return "HUMAN_REQUIRED: generated publication handoff artifact."
-
-    run(["git", "config", "user.name", "github-actions[bot]"])
-    run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"])
-    run(["git", "switch", "-C", branch])
-    run(["git", "commit", "-m", commit_message])
-    run(["git", "push", "--force-with-lease", "origin", f"HEAD:refs/heads/{branch}"])
-
-    existing_url = existing_pull_request(branch)
-    if existing_url:
-        return f"Updated generated-data PR: {existing_url}"
-
-    url = run(
-        [
-            "gh",
-            "pr",
-            "create",
-            "--repo",
-            os.environ["GITHUB_REPOSITORY"],
-            "--head",
-            branch,
-            "--base",
-            "main",
-            "--title",
-            title,
-            "--body",
-            body,
-        ],
-        capture=True,
-    )
-    return f"Created generated-data PR: {url}"
+    write_handoff(handoff_dir, branch, title)
+    return "HUMAN_REQUIRED: generated publication handoff artifact."
 
 
 def parse_args() -> argparse.Namespace:
@@ -148,7 +97,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--title", required=True)
     parser.add_argument("--body", required=True)
     parser.add_argument("--commit-message", required=True)
-    parser.add_argument("--handoff-dir", type=Path)
+    parser.add_argument("--handoff-dir", type=Path, required=True)
     return parser.parse_args()
 
 
