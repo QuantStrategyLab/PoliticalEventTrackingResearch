@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -33,20 +34,34 @@ def test_publish_does_not_create_branch_or_pr_without_staged_changes(monkeypatch
 
 def test_publish_requires_handoff_before_repository_or_remote_mutation(monkeypatch) -> None:
     module = load_module()
-    commands: list[list[str]] = []
     monkeypatch.setenv("GITHUB_REPOSITORY", "QuantStrategyLab/example")
-    monkeypatch.setattr(module, "staged_changes_present", lambda: True)
-
-    def fake_run(command, *, capture=False, strip=True):
-        commands.append(list(command))
-        return ""
-
-    monkeypatch.setattr(module, "run", fake_run)
+    monkeypatch.setattr(module, "staged_changes_present", lambda: pytest.fail("git diff must not run"))
+    monkeypatch.setattr(module, "run", lambda *_args, **_kwargs: pytest.fail("git command must not run"))
 
     with pytest.raises(module.PublishError, match="handoff"):
         module.publish("automation/generated", "Generated", "body", "commit")
 
-    assert commands == []
+
+def test_cli_requires_handoff_dir(monkeypatch) -> None:
+    module = load_module()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "publish_live_outputs_pr.py",
+            "--branch",
+            "automation/generated",
+            "--title",
+            "Generated",
+            "--body",
+            "body",
+            "--commit-message",
+            "commit",
+        ],
+    )
+
+    with pytest.raises(SystemExit):
+        module.parse_args()
 
 
 def test_publish_writes_human_handoff_without_remote_mutation(monkeypatch, tmp_path: Path) -> None:
@@ -77,8 +92,10 @@ def test_publish_writes_human_handoff_without_remote_mutation(monkeypatch, tmp_p
     )
 
     assert result == "HUMAN_REQUIRED: generated publication handoff artifact."
-    assert not any(command[:2] == ["git", "push"] for command in commands)
-    assert not any(command[:3] == ["gh", "pr", "create"] for command in commands)
+    assert commands == [
+        ["git", "diff", "--binary", "--full-index", "--cached"],
+        ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
+    ]
 
     patch = tmp_path / "generated-live-output.patch"
     receipt = json.loads((tmp_path / "publication-handoff.json").read_text(encoding="utf-8"))
