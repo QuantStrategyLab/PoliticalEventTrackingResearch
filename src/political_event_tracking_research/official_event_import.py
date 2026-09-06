@@ -141,6 +141,9 @@ def normalize_records(records: list[OfficialRecord]) -> list[dict[str, str]]:
                 "confidence": confidence_for_source(record),
                 "source_url": record.source_url,
                 "notes": record.summary,
+                "entity_match_type": record.entity_match_type,
+                "match_evidence": record.match_evidence,
+                "relationship_type": record.relationship_type,
             }
         )
     rows.sort(key=lambda row: (row["event_date"], row["symbol"], row["event_id"]))
@@ -152,7 +155,19 @@ def import_official_events(input_path: str | Path, output_path: str | Path) -> l
     rows = normalize_records(records)
     write_csv_rows(
         output_path,
-        ["event_id", "event_date", "symbol", "event_type", "direction", "confidence", "source_url", "notes"],
+        [
+            "event_id",
+            "event_date",
+            "symbol",
+            "event_type",
+            "direction",
+            "confidence",
+            "source_url",
+            "notes",
+            "entity_match_type",
+            "match_evidence",
+            "relationship_type",
+        ],
         rows,
     )
     return rows

@@ -38,6 +38,9 @@ def test_import_official_events_normalizes_to_event_schema(tmp_path: Path) -> No
         "confidence",
         "source_url",
         "notes",
+        "entity_match_type",
+        "match_evidence",
+        "relationship_type",
     }
 
 
@@ -137,3 +140,20 @@ def test_community_lead_records_are_not_in_stable_source_set() -> None:
 
     with pytest.raises(ValueError, match="unsupported source_type"):
         normalize_records([record])
+
+
+def test_normalize_records_preserves_verified_entity_relationship_fields(tmp_path: Path) -> None:
+    input_path = tmp_path / "entity-fields.csv"
+    input_path.write_text(
+        "record_id,record_date,symbol,source_type,event_type,direction,source_url,summary,"
+        "entity_match_type,match_evidence,relationship_type\n"
+        "entity-1,2026-01-10,EVT1,government_filing,disclosure_buy,bullish,"
+        "https://www.sec.gov/example/entity-1,Entity record.,issuer,SEC filing names EVT1,issuer\n",
+        encoding="utf-8",
+    )
+
+    rows = normalize_records(load_official_records(input_path))
+
+    assert rows[0]["entity_match_type"] == "issuer"
+    assert rows[0]["match_evidence"] == "SEC filing names EVT1"
+    assert rows[0]["relationship_type"] == "issuer"
