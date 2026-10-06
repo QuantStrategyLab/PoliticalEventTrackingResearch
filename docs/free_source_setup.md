@@ -12,4 +12,22 @@
 - `data/live/political_events.csv`: stable Advisor input, refreshed by RSS/source pipeline or maintained after manual review.
 - `data/live/source_tracker.csv`: merged watchlist and event tracker.
 
+## Entity-field preservation stage
+
+The RSS/source extractor exports the eight existing event columns followed by
+`entity_match_type`, `match_evidence`, and `relationship_type`. This stage only
+preserves the normalized fields in the CSV; it does not verify company
+relationships. Extracted mentions retain `unverified`, an empty evidence string,
+and `unverified`, respectively. Source `confidence=high` describes the source
+type, not verified company evidence. Generic terms such as "strategy",
+"cybersecurity", or "crypto assets", and incidental references to WhatsApp do
+not establish an issuer or direct-beneficiary relationship.
+
+With `commit_outputs=true`, the source workflows stage generated live files and
+upload a patch plus a `HUMAN_REQUIRED` receipt. An authorized maintainer reviews
+the patch and submits it through a normal protected-branch PR; the workflows do
+not directly publish to `main`. Preserving these fields does not collect new
+evidence, regenerate live data, or change downstream acceptance requirements.
+Real company evidence and its data PR remain a separate reviewed step.
+
 See the Chinese setup note for cron wiring, refresh commands, and operator checks.
