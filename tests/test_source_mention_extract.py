@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import csv
 from pathlib import Path
 
-from political_event_tracking_research.source_mention_extract import extract_source_records, infer_direction, match_symbols
-from political_event_tracking_research.source_mention_extract import MentionAlias
+import pytest
 
+from political_event_tracking_research.source_mention_extract import (
+    MentionAlias,
+    extract_source_records,
+    infer_direction,
+    match_symbols,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -51,3 +57,69 @@ def test_extract_source_records_outputs_confidence_by_source_type(tmp_path: Path
     assert by_symbol["EVT3"]["confidence"] == "low"
     assert by_symbol["EVT4"]["event_type"] == "procurement"
     assert output.exists()
+
+
+def test_extract_source_records_preserves_entity_fields_in_csv(tmp_path: Path) -> None:
+    output = tmp_path / "source_events.csv"
+
+    rows = extract_source_records(
+        ROOT / "examples/source_items.example.csv",
+        ROOT / "examples/symbol_aliases.example.csv",
+        output,
+    )
+
+    with output.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        assert reader.fieldnames == [
+            "event_id",
+            "event_date",
+            "symbol",
+            "event_type",
+            "direction",
+            "confidence",
+            "source_url",
+            "notes",
+            "entity_match_type",
+            "match_evidence",
+            "relationship_type",
+        ]
+        exported_rows = list(reader)
+
+    assert exported_rows == rows
+    for row in exported_rows:
+        assert row["entity_match_type"] == "unverified"
+        assert row["match_evidence"] == ""
+        assert row["relationship_type"] == "unverified"
+
+
+@pytest.mark.parametrize(
+    ("text", "symbols"),
+    [
+        ("National standards strategy creates a shared framework.", {"MSTR"}),
+        ("Cybersecurity policy supports workforce development.", {"PANW"}),
+        ("New policy for crypto assets custody.", {"COIN", "MSTR"}),
+        ("Fraudsters used WhatsApp to contact investors.", {"META"}),
+    ],
+)
+def test_high_source_confidence_does_not_verify_company_mentions(
+    tmp_path: Path, text: str, symbols: set[str]
+) -> None:
+    raw_items = tmp_path / "source_items.csv"
+    with raw_items.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["item_id", "published_at", "source_type", "source_url", "author", "text"])
+        writer.writerow(
+            ["synthetic-1", "2026-01-10", "government_policy", "https://www.sec.gov/example", "Example", text]
+        )
+    output = tmp_path / "source_events.csv"
+
+    extract_source_records(raw_items, ROOT / "config/core_us_equity_aliases.csv", output)
+
+    with output.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    assert {row["symbol"] for row in rows} == symbols
+    for row in rows:
+        assert row["confidence"] == "high"
+        assert row["entity_match_type"] == "unverified"
+        assert row["match_evidence"] == ""
+        assert row["relationship_type"] == "unverified"

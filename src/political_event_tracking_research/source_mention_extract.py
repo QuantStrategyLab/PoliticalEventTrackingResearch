@@ -150,7 +150,19 @@ def extract_source_records(raw_items_path: str | Path, aliases_path: str | Path,
     rows = normalize_records(records)
     write_csv_rows(
         output_path,
-        ["event_id", "event_date", "symbol", "event_type", "direction", "confidence", "source_url", "notes"],
+        [
+            "event_id",
+            "event_date",
+            "symbol",
+            "event_type",
+            "direction",
+            "confidence",
+            "source_url",
+            "notes",
+            "entity_match_type",
+            "match_evidence",
+            "relationship_type",
+        ],
         rows,
     )
     return rows

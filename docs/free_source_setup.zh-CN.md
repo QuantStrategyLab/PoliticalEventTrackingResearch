@@ -52,8 +52,8 @@ gh workflow run "RSS Source Pipeline" \
 
 ## 推荐运营流程
 
-1. RSS pipeline 定时生成并提交 `data/live/source_items.csv`、`source_events.csv`、`political_events.csv`、`source_tracker.csv`、`source_fetch_status.json` 和 `source_manifest.json`。
-2. 人工来源仍可以通过 `Source Event Pipeline` 输入 `source_items.csv`，再选择 `commit_outputs=true` 写回 live CSV。
+1. RSS pipeline 定时生成并暂存 `data/live/source_items.csv`、`source_events.csv`、`political_events.csv`、`source_tracker.csv`、`source_fetch_status.json` 和 `source_manifest.json`，上传 patch 与 `HUMAN_REQUIRED` receipt；由已授权维护者审核并通过正常受保护分支 PR 提交，不直接发布到 `main`。
+2. 人工来源仍可以通过 `Source Event Pipeline` 输入 `source_items.csv`，选择 `commit_outputs=true` 后也只生成上述人工 PR 交接，不会自动写回远程 live CSV。
 3. 如果单个 RSS 源失败，workflow 会继续处理其他源，并把失败写入 `source_fetch_status.json`；连续失败的源再单独移除或替换。
 4. 如果 RSS 拉到了文章但事件为空，优先检查 alias 覆盖；很多官方政策只写主题词，不写公司名。
 5. 发布 Advisor 时使用：
@@ -68,6 +68,12 @@ gh workflow run "Publish Model Recommendations Site" \
 ```
 
 如果 `political_events_path` / `political_watchlist_path` 不在 `examples/` 下，Advisor 输出会标记为 `source_mode=operator_supplied`。
+
+## 实体字段保留阶段
+
+RSS/source extractor 在原有八列后输出 `entity_match_type`、`match_evidence` 和 `relationship_type`。本阶段只把规范化结果已有的字段保留到 CSV，不核实公司关系；自动抽取记录的三个字段仍分别为 `unverified`、空字符串和 `unverified`。
+
+来源的 `confidence=high` 只表示来源类型，不代表公司实体证据已核实。普通词语 strategy、cybersecurity、crypto assets，以及附带提及 WhatsApp，都不能据此认定发行人或直接受益关系。本阶段不采集新证据、不重生成 live 数据、不改变下游接受门槛；真实公司证据及其数据 PR 另行审核。
 
 ## 长线证据边界
 
