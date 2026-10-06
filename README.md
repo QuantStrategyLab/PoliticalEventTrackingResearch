@@ -1,14 +1,5 @@
 # PoliticalEventTrackingResearch
 
-
-## QSL architecture role
-
-- **Layer**: `research`.
-- **Responsibility**: public political and policy event evidence pipeline.
-- **Owns**: source items, source events, traceable research evidence.
-- **Consumes**: public RSS/web sources and downstream research consumers.
-- **Must not**: produce automatic trading instructions or mutate allocations.
-
 [Chinese README](README.zh-CN.md)
 
 > Investing involves risk. This project does not provide investment advice and is for education, research, and engineering review only.
@@ -18,6 +9,14 @@
 PoliticalEventTrackingResearch is a QuantStrategyLab public event evidence pipeline. It tracks public political and policy event evidence for US equity research context.
 
 It produces research, audit, or orchestration artifacts. It should not submit broker orders or mutate live allocations by itself.
+
+## QSL architecture role
+
+- **Layer**: `research`.
+- **Responsibility**: public political and policy event evidence pipeline.
+- **Owns**: source items, source events, traceable research evidence.
+- **Consumes**: public RSS/web sources and downstream research consumers.
+- **Must not**: produce automatic trading instructions or mutate allocations.
 
 ## Output boundary
 
