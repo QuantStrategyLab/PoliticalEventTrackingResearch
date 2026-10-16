@@ -1,61 +1,78 @@
 # PoliticalEventTrackingResearch
 
-[Chinese README](README.zh-CN.md)
+Research-only pipeline that tracks public political and policy event evidence for US equity research.
 
-> Investing involves risk. This project does not provide investment advice and is for education, research, and engineering review only.
+English | [简体中文](README.zh-CN.md)
 
-## What this repository is
+## Status
 
-PoliticalEventTrackingResearch is a QuantStrategyLab public event evidence pipeline. It tracks public political and policy event evidence for US equity research context.
+Experimental. Use at your own risk. This project is not financial advice and
+does not guarantee any trading result. Its outputs are research evidence, not
+trading instructions.
 
-It produces research, audit, or orchestration artifacts. It should not submit broker orders or mutate live allocations by itself.
+## What this is
 
-## QSL architecture role
+PoliticalEventTrackingResearch ingests public political and policy sources,
+such as free RSS feeds and official disclosures, and builds traceable research
+artifacts: source items, extracted events, watchlist matches, and event-study
+inputs. It reads only public sources and writes CSV and JSON output, so a
+researcher can reproduce an evidence trail for US equity context. It is aimed
+at research and engineering review, not at live trading.
 
-- **Layer**: `research`.
-- **Responsibility**: public political and policy event evidence pipeline.
-- **Owns**: source items, source events, traceable research evidence.
-- **Consumes**: public RSS/web sources and downstream research consumers.
-- **Must not**: produce automatic trading instructions or mutate allocations.
+## What this is not
 
-## Output boundary
-
-- Treat generated reports as evidence or review material, not automatic trading instructions.
-- Keep source traceability and artifact timestamps visible.
-- Require human review before using outputs in downstream strategy or platform changes.
-- Keep credentials, private data, and external service tokens out of Git and logs.
-
-## Repository layout
-
-- `src/`: library and runtime code.
-- `tests/`: unit, contract, and regression tests.
-- `docs/`: runbooks, design notes, evidence, and integration contracts.
-- `.github/workflows/`: CI, scheduled jobs, release, or deployment workflows.
-- `scripts/`: operator scripts and local helpers.
-- `config/`: runtime or pipeline configuration.
+It does not place broker orders. It does not mutate live allocations. It does
+not produce automatic trading instructions, and its reports are not
+recommendations.
 
 ## Quick start
 
+Requires Python 3.11 or newer.
+
 ```bash
-python -m pip install -e .
+python -m pip install -e '.[test]'
 python -m pytest -q
 ```
 
-## Useful docs
+Explore the command-line entry points (each supports `--help`):
 
-- [`docs/free_source_setup.zh-CN.md`](docs/free_source_setup.zh-CN.md)
-- [`docs/research_plan.zh-CN.md`](docs/research_plan.zh-CN.md)
-- [`docs/source_ingestion_options.md`](docs/source_ingestion_options.md)
-- [`docs/source_registry.md`](docs/source_registry.md)
+```bash
+petr-fetch-rss-sources --help
+petr-import-official-events --help
+petr-build-tracker --help
+```
 
-## Community and security
+## Configuration
 
-- See [CONTRIBUTING.md](CONTRIBUTING.md) for pull request scope, local verification, and documentation expectations.
-- Follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for maintainer and contributor conduct.
-- Report credential, automation, broker, exchange, or cloud-resource vulnerabilities through [SECURITY.md](SECURITY.md); do not open public issues for secrets or live-execution risk.
+The pipeline is configured through input files rather than environment
+variables. Copy the matching file from `examples/` and edit it.
+
+| File | Required | Purpose |
+|---|---|---|
+| `config/free_rss_feeds.csv` | No | Default public RSS feed list. |
+| `config/core_us_equity_aliases.csv` | No | Symbol and name aliases used when matching sources to tickers. |
+| `examples/*.csv` | No | Sample inputs for local runs. |
+
+## Repository layout
+
+```
+src/        library code and command implementations
+scripts/    command-line helpers
+config/     default feed and alias tables
+examples/   sample inputs
+docs/       design notes and output contracts
+tests/      unit and contract tests
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Security
+
+See [SECURITY.md](SECURITY.md). Do not open a public issue for a vulnerability.
+Keep credentials, private data, and external service tokens out of Git and logs.
 
 ## License
 
-See [LICENSE](LICENSE).
-
-[Project scope and operating reference](docs/project-reference.md).
+MIT. See [LICENSE](LICENSE).
