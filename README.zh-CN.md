@@ -1,59 +1,67 @@
 # PoliticalEventTrackingResearch
 
-[English README](README.md)
+面向美股研究的公开政治与政策事件证据管线。
 
-> 投资有风险。本项目不构成投资建议，仅用于学习、研究和工程审阅。
+[English](README.md) | 简体中文
 
-## 这个仓库是什么
+## 状态
 
-PoliticalEventTrackingResearch 是 QuantStrategyLab 的公开事件证据流水线。追踪政治与政策公开事件证据，为美股研究提供上下文。
+实验性项目，使用风险自负。本项目不构成投资建议，也不保证任何交易结果。它的输出是研究证据，不是交易指令。
 
-它产出研究、审计或编排类 artifact，不应自行提交券商订单，也不应直接修改 live allocation。
+## 简介
 
-## QSL 架构角色
+PoliticalEventTrackingResearch 采集公开的政治与政策来源（例如免费的 RSS feed 和官方披露），并生成可追溯的研究产物：来源条目、抽取出的活动、关注列表匹配结果和事件研究输入。它只读取公开来源，输出 CSV 和 JSON，让研究者可以复现一条美股研究所需的证据链。它面向研究与工程审阅，不面向实盘交易。
 
-- **层级**：`研究/证据`。
-- **职责**：公开政治/政策事件证据流水线。
-- **事实源/归属**：source items、source events、可追溯研究证据。
-- **消费对象**：公开 RSS/web sources 和下游研究消费者。
-- **禁止事项**：生成自动交易指令或修改 allocations。
+## 不适用范围
 
-## 输出边界
-
-- 生成报告应作为证据或审阅材料，不是自动交易指令。
-- 保留来源可追溯性和 artifact 时间戳。
-- 输出用于下游策略或平台改动前，需要人工 review。
-- 凭据、私人数据和外部服务 token 不能提交到 Git，也不能写入日志。
-
-## 仓库结构
-
-- `src/`：库代码和运行时代码。
-- `tests/`：单元测试、契约测试和回归测试。
-- `docs/`：运行手册、设计说明、证据和集成契约。
-- `.github/workflows/`：CI、定时任务、发布或部署 workflow。
-- `scripts/`：运维脚本和本地辅助工具。
-- `config/`：运行或流水线配置。
+它不提交券商订单。它不改变实盘仓位分配。它不产生自动交易指令，其报告也不构成投资建议。
 
 ## 快速开始
 
+需要 Python 3.11 或更高版本。
+
 ```bash
-python -m pip install -e .
+python -m pip install -e '.[test]'
 python -m pytest -q
 ```
 
-## 延伸文档
+命令行入口（均支持 `--help`）：
 
-- [`docs/free_source_setup.zh-CN.md`](docs/free_source_setup.zh-CN.md)
-- [`docs/research_plan.zh-CN.md`](docs/research_plan.zh-CN.md)
-- [`docs/source_ingestion_options.md`](docs/source_ingestion_options.md)
-- [`docs/source_registry.md`](docs/source_registry.md)
+```bash
+petr-fetch-rss-sources --help
+petr-import-official-events --help
+petr-build-tracker --help
+```
 
-## 社区和安全
+## 配置
 
-- 贡献前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)，确认 PR 范围、本地校验和文档要求。
-- 讨论、issue 和 review 请遵守 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。
-- 涉及密钥、自动化、券商/交易所或云资源的漏洞请按 [SECURITY.md](SECURITY.md) 私密报告；不要为 secret 或实盘风险开公开 issue。
+本管线通过输入文件配置，而不是环境变量。把 `examples/` 中的对应文件复制出来再修改。
+
+| 文件 | 必填 | 用途 |
+|---|---|---|
+| `config/free_rss_feeds.csv` | 否 | 默认的公开 RSS feed 列表。 |
+| `config/core_us_equity_aliases.csv` | 否 | 把来源匹配到代码时使用的符号与名称别名表。 |
+| `examples/*.csv` | 否 | 本地运行用的示例输入。 |
+
+## 仓库结构
+
+```
+src/        库代码和命令实现
+scripts/    命令行辅助脚本
+config/     默认 feed 与别名表
+examples/   示例输入
+docs/       设计说明与输出契约
+tests/      单元与契约测试
+```
+
+## 参与贡献
+
+见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 安全
+
+见 [SECURITY.md](SECURITY.md)。安全漏洞不要开公开 issue，也不要让凭据、私有数据和外部服务 token 进入 Git 或日志。
 
 ## 许可证
 
-详见 [LICENSE](LICENSE)。
+MIT，见 [LICENSE](LICENSE)。
