@@ -37,6 +37,8 @@ python -m pytest -q
 The scheduled workflows fetch public sources; do not run them as part of a
 documentation or rule change.
 
+Organization documentation rules are checked by `python scripts/check_style.py`, which also runs in CI as the `Documentation check` job.
+
 ## Naming and documentation
 
 - Developer documentation is English by default; Chinese siblings use
