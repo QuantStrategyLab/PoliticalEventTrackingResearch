@@ -1,6 +1,6 @@
 # Free data source setup
 
-[简体中文](free_source_setup.zh-CN.md)
+[简体中文](free-source-setup.zh-CN.md)
 
 ## Shipped files
 

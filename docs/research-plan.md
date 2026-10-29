@@ -1,6 +1,6 @@
 # Political event tracking research plan
 
-[简体中文](research_plan.zh-CN.md)
+[简体中文](research-plan.zh-CN.md)
 
 ## Goal
 
