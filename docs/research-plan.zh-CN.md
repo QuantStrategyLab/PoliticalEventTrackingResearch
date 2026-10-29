@@ -1,6 +1,6 @@
 # 政治事件追踪研究计划
 
-[English](research_plan.md)
+[English](research-plan.md)
 
 ## 目标
 
