@@ -68,6 +68,8 @@ Organization documentation rules are checked by `python scripts/check_style.py`,
 
 ## Do not
 
+- Only the owner, or a reviewer explicitly authorized by the owner, may apply the `owner-approved` label; coding agents must never apply it to their own PRs.
+
 - Do not read authenticated or private sources; the pipeline is limited to public
   feeds and official disclosures.
 - Do not treat an extracted event as a trading instruction or a recommendation.
