@@ -146,7 +146,7 @@ IDENTITY_WORKFLOW = "rss_source_pipeline.yml"
 # Identity-only tests execute the reviewed inline Python with mocked HTTP only.
 
 
-IDENTITY_ACTION = "actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1"
+IDENTITY_ACTION_PATTERN = re.compile(r"^\s*uses:\s*actions/create-github-app-token@[0-9a-f]{40}\b", re.MULTILINE)
 IDENTITY_URL = "https://api.github.com/installation/repositories?per_page=100"
 
 
@@ -240,7 +240,7 @@ def test_identity_only_is_opt_in_and_isolates_all_normal_steps():
         assert "github.event_name == 'workflow_dispatch' && inputs.identity_only" in step
     assert "always()" in identity_step("publisher_identity_summary")
     mint = identity_step("publisher_identity_token")
-    assert IDENTITY_ACTION in mint
+    assert IDENTITY_ACTION_PATTERN.search(mint)
     assert f"          repositories: {IDENTITY_REPOSITORY.split('/')[1]}\n" in mint
     assert "          owner: QuantStrategyLab\n" in mint
     assert "          permission-contents: write\n" in mint
